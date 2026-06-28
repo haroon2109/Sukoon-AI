@@ -9,7 +9,7 @@ export function ThemeToggle() {
   const { setTheme, theme, resolvedTheme } = useTheme()
 
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
     setMounted(true)
   }, [])
 
@@ -36,7 +36,7 @@ export function ThemeToggle() {
       Math.max(y, innerHeight - y)
     )
 
-    // @ts-expect-error
+    // @ts-expect-error - startViewTransition is not fully supported in all TS versions
     const transition = document.startViewTransition(() => {
       return import('react-dom').then(({ flushSync }) => {
         flushSync(() => {

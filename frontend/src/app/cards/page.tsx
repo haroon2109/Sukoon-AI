@@ -52,7 +52,7 @@ export default function ExampleCardsPage() {
                           verification.verdict === 'false' ? 'text-red-500' :
                           verification.verdict === 'misleading' ? 'text-amber-500' : 'text-emerald-600'
                        }`}>CLAIM</span>
-                       <h4 className="text-lg font-bold text-slate-800 leading-tight">"{verification.claimSummary}"</h4>
+                       <h4 className="text-lg font-bold text-slate-800 leading-tight">&quot;{verification.claimSummary}&quot;</h4>
                     </div>
                  </div>
 
