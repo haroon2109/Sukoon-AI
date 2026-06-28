@@ -318,17 +318,17 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {/* WhatsApp */}
+            {/* Web Platform */}
             <div className="bg-white border border-slate-100 rounded-3xl p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] hover:shadow-lg transition-shadow group flex flex-col h-full">
               <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-8">
-                 <WhatsAppIcon className="w-8 h-8 text-emerald-600" />
+                 <ShieldCheck className="w-8 h-8 text-emerald-600" />
               </div>
-              <h4 className="text-2xl font-bold text-slate-800 mb-4">WhatsApp</h4>
+              <h4 className="text-2xl font-bold text-slate-800 mb-4">Web Platform</h4>
               <p className="text-slate-500 font-medium leading-relaxed mb-10 flex-grow">
-                Forward suspicious messages, audios, images or videos to our verified number and get instant truth checks.
+                Paste suspicious messages directly on our website and get instant AI-powered truth checks.
               </p>
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 text-green-700 text-sm font-bold mt-auto self-start border border-green-100">
-                <WhatsAppIcon className="w-4 h-4 text-green-600" /> WhatsApp Tipline
+                <ShieldCheck className="w-4 h-4 text-green-600" /> Web Dashboard
               </div>
             </div>
 
