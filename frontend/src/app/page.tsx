@@ -67,7 +67,7 @@ export default function LandingPage() {
             <Link href="#platforms" className="hover:text-emerald-600 transition-colors whitespace-nowrap">Our Shield Covers</Link>
             <Link href="/cards" className="hover:text-emerald-600 transition-colors whitespace-nowrap">Truth Cards</Link>
             <Link href="#truth-over-rumors" className="hover:text-emerald-600 transition-colors whitespace-nowrap hidden lg:block">Truth Over Rumors</Link>
-            <Link href="#testimonials" className="hover:text-emerald-600 transition-colors whitespace-nowrap hidden lg:block">What People Say</Link>
+
           </div>
           
           {/* Action Buttons */}
@@ -537,71 +537,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section id="testimonials" className="py-24 px-6 bg-slate-50 overflow-hidden">
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.7 }}
-          className="max-w-[1400px] mx-auto"
-        >
-          <div className="text-center mb-16">
-            <h2 className="text-[10px] md:text-xs font-bold tracking-[0.3em] text-slate-400 uppercase mb-3 font-serif">WHAT PEOPLE SAY</h2>
-            <h3 className="text-4xl md:text-5xl font-bold text-slate-900 font-serif">Real Impact. Real Peace.</h3>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col hover:shadow-md transition-shadow">
-                <Quote className="w-8 h-8 text-emerald-300 mb-6 rotate-180" />
-                <p className="text-slate-600 font-medium leading-relaxed mb-8 flex-grow">
-                   Sukoon AI helped our community avoid spreading a fake news video that could have caused unnecessary panic. Truly a digital shield.
-                </p>
-                <div className="flex items-center gap-3">
-                   <img src="https://i.pravatar.cc/100?img=11" alt="Avatar" className="w-10 h-10 rounded-full" />
-                   <div>
-                      <h5 className="text-sm font-bold text-slate-800">Ramesh Kumar</h5>
-                      <p className="text-[10px] font-bold text-slate-500">School Teacher, Chennai</p>
-                   </div>
-                </div>
-             </div>
-
-             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col hover:shadow-md transition-shadow">
-                <Quote className="w-8 h-8 text-emerald-300 mb-6 rotate-180" />
-                <p className="text-slate-600 font-medium leading-relaxed mb-8 flex-grow">
-                   The truth cards are so neat and easy to understand. I share them in my family groups to stop rumors politely and peacefully.
-                </p>
-                <div className="flex items-center gap-3">
-                   <img src="https://i.pravatar.cc/100?img=5" alt="Avatar" className="w-10 h-10 rounded-full" />
-                   <div>
-                      <h5 className="text-sm font-bold text-slate-800">Ayesha Khan</h5>
-                      <p className="text-[10px] font-bold text-slate-500">Entrepreneur, Bengaluru</p>
-                   </div>
-                </div>
-             </div>
-
-             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col hover:shadow-md transition-shadow">
-                <Quote className="w-8 h-8 text-emerald-300 mb-6 rotate-180" />
-                <p className="text-slate-600 font-medium leading-relaxed mb-8 flex-grow">
-                   Love the peaceful approach. It doesn't shame anyone, it just brings clarity. This is how tech should be used.
-                </p>
-                <div className="flex items-center gap-3">
-                   <img src="https://i.pravatar.cc/100?img=8" alt="Avatar" className="w-10 h-10 rounded-full" />
-                   <div>
-                      <h5 className="text-sm font-bold text-slate-800">Harpreet Singh</h5>
-                      <p className="text-[10px] font-bold text-slate-500">Social Worker, Delhi</p>
-                   </div>
-                </div>
-             </div>
-          </div>
-          
-          <div className="flex justify-center items-center gap-2 mt-10">
-             <div className="w-2 h-2 rounded-full bg-emerald-600"></div>
-             <div className="w-2 h-2 rounded-full bg-slate-300"></div>
-             <div className="w-2 h-2 rounded-full bg-slate-300"></div>
-          </div>
-        </motion.div>
-      </section>
 
       {/* Footer Banner - Solid Green Full Width */}
       <section className="bg-gradient-to-r from-[#2E8C6A] to-emerald-600 pt-20 pb-20 relative overflow-hidden">
