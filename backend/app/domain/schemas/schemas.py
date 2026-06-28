@@ -1,27 +1,64 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, HttpUrl, field_validator
 from typing import Optional, List
 from datetime import datetime
+from enum import Enum
+import bleach
+
+# --- Enums ---
+class SourcePlatform(str, Enum):
+    TWITTER = "twitter"
+    INSTAGRAM = "instagram"
+    WHATSAPP = "whatsapp"
+    FACEBOOK = "facebook"
+    YOUTUBE = "youtube"
+    OTHER = "other"
 
 # --- User Schemas ---
 class UserBase(BaseModel):
     email: EmailStr
-    organization_name: Optional[str] = None
+    organization_name: Optional[str] = Field(None, max_length=100)
+    
+    @field_validator("organization_name")
+    def sanitize_org_name(cls, v):
+        if v is not None:
+            return bleach.clean(v, strip=True)
+        return v
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(..., min_length=8, max_length=128)
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str = Field(..., max_length=128)
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
 
 class UserResponse(UserBase):
     id: str
-    api_key: str
+    is_verified: bool
     created_at: datetime
     
     class Config:
         from_attributes = True
 
+# --- Verification Requests ---
+class UrlVerificationRequest(BaseModel):
+    url: HttpUrl
+    source_platform: SourcePlatform
+
 # --- Claim Schemas ---
 class ClaimCreate(BaseModel):
-    raw_content: str
-    language: Optional[str] = "en"
+    raw_content: str = Field(..., min_length=1, max_length=5000)
+    language: Optional[str] = Field("en", max_length=10)
+    
+    @field_validator("raw_content")
+    def sanitize_content(cls, v):
+        return bleach.clean(v, strip=True)
 
 class ClaimResponse(BaseModel):
     id: str

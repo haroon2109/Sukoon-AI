@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.db.session import get_db
-# In a real app, we would import the SQLAlchemy models here
-# from database.models import FactCheck, VerificationRequest
+from app.api.dependencies.auth import get_current_user
+from app.domain.models.users import User
+from app.core.rate_limit import limiter
 
 router = APIRouter()
 
 @router.get("/{request_id}", response_model=dict)
-async def get_verification_result(request_id: UUID, db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+async def get_verification_result(request: Request, request_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
     Fetch the completed Fact Card and analysis results for a given verification request.
     """
@@ -19,6 +21,9 @@ async def get_verification_result(request_id: UUID, db: Session = Depends(get_db
     verification = verification_repo.get(db, id=str(request_id))
     if not verification:
         raise HTTPException(status_code=404, detail="Verification request not found")
+        
+    if verification.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
         
     return {
         "request_id": str(verification.id),

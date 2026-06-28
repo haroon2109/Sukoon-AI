@@ -39,7 +39,6 @@ python-dateutil==2.9.0.post0
 python-jose==3.5.0
 python-multipart==0.0.32
 pywin32==312
-qdrant-client==1.18.0
 redis==8.0.1
 rsa==4.9.1
 six==1.17.0
@@ -56,3 +55,8 @@ wcwidth==0.8.1
 websockets==16.0
 google-cloud-aiplatform==1.50.0
 google-antigravity
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
+slowapi
+bleach

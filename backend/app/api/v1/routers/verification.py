@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List
 from ....domain.schemas.schemas import ClaimCreate, VerificationResponse, VerificationHistoryItem, DashboardStatsResponse
@@ -6,43 +6,43 @@ from datetime import datetime, timedelta
 from ....services.verification_service import verification_service
 from ....services.auth_service import auth_service
 from ....api.dependencies.database import get_db
+from ....api.dependencies.auth import get_current_user
+from ....domain.models.users import User
 from ....domain.models.verifications import Verification
 from sqlalchemy import desc
+from ....core.rate_limit import limiter
 
 router = APIRouter()
 
-def get_current_user(x_api_key: str = Header(default="test-key"), db: Session = Depends(get_db)):
-    # In production, validate this via auth_service
-    # For MVP scaffold:
-    return "mocked-user-uuid"
-
-
-
 @router.get("/history", response_model=List[VerificationHistoryItem])
+@limiter.limit("30/minute")
 def get_history(
+    request: Request,
     db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Returns the verification history for the current user.
     """
     verifications = db.query(Verification).filter(
-        Verification.user_id == current_user_id
+        Verification.user_id == current_user.id
     ).order_by(desc(Verification.completed_at)).limit(50).all()
     
     return verifications
 
 @router.get("/dashboard/stats", response_model=DashboardStatsResponse)
+@limiter.limit("10/minute")
 def get_dashboard_stats(
+    request: Request,
     days: int = 7,
     db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Returns dashboard statistics for the current user.
     """
     all_verifications = db.query(Verification).filter(
-        Verification.user_id == current_user_id
+        Verification.user_id == current_user.id
     ).all()
     
     today = datetime.now().date()

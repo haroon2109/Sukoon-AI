@@ -1,10 +1,14 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    QDRANT_URL: str | None = None
-    QDRANT_API_KEY: str | None = None
+    GEMINI_API_KEY: str | None = None
     GCP_PROJECT_ID: str = "arenagrid"
     GCP_REGION: str = "us-central1"
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    DATABASE_URL: str | None = None
+    ENVIRONMENT: str = "development"
 
     class Config:
         env_file = ".env"

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, WebSocket, WebSocketDisconnect, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -6,15 +6,16 @@ import asyncio
 
 from app.db.session import get_db
 from app.agents.context_verifier import ContextVerificationAgent
-from app.domain.schemas.schemas import ClaimCreate
+from app.domain.schemas.schemas import ClaimCreate, UrlVerificationRequest
 from app.services.verification_service import verification_service
 from app.domain.models.users import User
+from app.api.dependencies.auth import get_current_user
+from fastapi import File, UploadFile
+import os
+from app.core.utils import secure_filename
+from app.core.rate_limit import limiter
 
 router = APIRouter()
-
-class UrlVerificationRequest(BaseModel):
-    url: str
-    source_platform: str
 
 class VerificationResponse(BaseModel):
     task_id: str
@@ -22,10 +23,13 @@ class VerificationResponse(BaseModel):
     message: str
 
 @router.post("/url", response_model=VerificationResponse, status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("10/minute")
 async def submit_url_for_verification(
-    request: UrlVerificationRequest, 
+    request: Request,
+    url_req: UrlVerificationRequest, 
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Submit a URL (e.g., from X or Instagram) for verification.
@@ -43,30 +47,43 @@ async def submit_url_for_verification(
         message="Verification pipeline started. Poll the /results endpoint for updates."
     )
 
+ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "audio/mpeg", "video/mp4"}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
 @router.post("/media", response_model=VerificationResponse, status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("10/minute")
 async def submit_media_for_verification(
-    claim_in: ClaimCreate,
+    request: Request,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Submit a media file (WhatsApp audio/video forward) or text for verification.
+    Submit a media file (audio/video/image) for verification securely.
     """
-    # Mock user ID for MVP
-    current_user_id = "mocked-user-uuid"
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, MP3, and MP4 are allowed.")
+        
+    safe_filename = secure_filename(file.filename)
     
-    # Ensure mock user exists to prevent Foreign Key constraint errors
-    existing_user = db.query(User).filter(User.id == current_user_id).first()
-    if not existing_user:
-        new_user = User(id=current_user_id, email="mock@sukoon.ai", full_name="Mock User")
-        db.add(new_user)
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
+    # Check size by reading in chunks to avoid memory issues and stop early
+    file_size = 0
+    while chunk := await file.read(8192):
+        file_size += len(chunk)
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="File too large. Maximum size is 10MB.")
+            
+    # Reset file pointer for future processing
+    await file.seek(0)
+    
+    # In a real app, save to GCP Cloud Storage here using safe_filename
+    
+    # Create a mock ClaimCreate to satisfy the current ingest_payload signature
+    claim_in = ClaimCreate(raw_content=f"Uploaded media: {safe_filename}")
     
     # 1. Create a VerificationRequest record in the database
-    verification = verification_service.ingest_payload(db, claim_in, current_user_id)
+    verification = verification_service.ingest_payload(db, claim_in, current_user.id)
     
     return VerificationResponse(
         task_id=str(verification.id),
@@ -78,12 +95,44 @@ from app.repositories.repos import verification_repo, claim_repo
 from datetime import datetime
 
 @router.websocket("/ws/{task_id}")
-async def websocket_verification_stream(websocket: WebSocket, task_id: str, db: Session = Depends(get_db)):
+async def websocket_verification_stream(websocket: WebSocket, task_id: str, token: str = None, db: Session = Depends(get_db)):
     """
     Real-time WebSocket endpoint. 
     Replaces the old REST polling to stream analysis phases back to the UI instantly.
     """
+    from jose import jwt, JWTError
+    from app.core.config import settings
+    from app.repositories.repos import user_repo
+    
     await websocket.accept()
+    
+    # Manually authenticate via token query parameter
+    if not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
+        return
+        
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            raise JWTError()
+        current_user = user_repo.get_by_email(db, email)
+        if not current_user:
+            raise JWTError()
+    except JWTError:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
+        return
+        
+    # Enforce IDOR ownership check
+    verification = verification_repo.get(db, id=task_id)
+    if not verification:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Verification not found")
+        return
+        
+    if verification.user_id != current_user.id:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Not authorized")
+        return
+
     try:
         # Mock streaming the agent pipeline execution (progress events)
         stages = [
@@ -98,7 +147,7 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, db: 
             await websocket.send_json(stage)
             
         # 1. Fetch Verification and Claim from DB
-        verification = verification_repo.get(db, id=task_id)
+        # Verification already fetched above for IDOR check
         claim_text = "Unknown claim"
         if verification and verification.claim_id:
             claim = claim_repo.get(db, id=verification.claim_id)

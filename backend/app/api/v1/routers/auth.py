@@ -1,14 +1,75 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from ....domain.schemas.schemas import UserCreate, UserResponse
+from ....domain.schemas.schemas import UserCreate, UserResponse, UserLogin, Token
 from ....services.auth_service import auth_service
 from ....api.dependencies.database import get_db
+from ....core.security import create_access_token
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from jose import jwt, JWTError
+from ....core.config import settings
+from ....core.rate_limit import limiter
 
 router = APIRouter()
 
 @router.post("/register", response_model=UserResponse)
-def register_organization(user_in: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register_organization(request: Request, user_in: UserCreate, db: Session = Depends(get_db)):
     """
-    Registers a new B2B client and returns an API Key.
+    Registers a new user securely and sends a verification email.
     """
     return auth_service.create_organization(db, user_in)
+
+@router.post("/login", response_model=Token)
+@limiter.limit("10/minute")
+def login(request: Request, user_login: UserLogin, db: Session = Depends(get_db)):
+    """
+    Authenticates a user and returns a JWT access token.
+    """
+    user = auth_service.authenticate_user(db, user_login)
+    if not user:
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    if not user.is_verified:
+        raise HTTPException(status_code=403, detail="Email not verified")
+        
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("/verify-email")
+def verify_email(token: str, db: Session = Depends(get_db)):
+    """
+    Verifies a user's email using the JWT token sent via email.
+    """
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        token_type: str = payload.get("type")
+        if email is None or token_type != "verification":
+            raise HTTPException(status_code=400, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid token")
+        
+    user = auth_service.verify_email(db, email=email)
+    return {"message": "Email verified successfully"}
+@router.post("/forgot-password")
+@limiter.limit("3/minute")
+def forgot_password(request: Request, email: str, db: Session = Depends(get_db)):
+    """
+    Generates a password reset token and sends it via email.
+    """
+    auth_service.create_password_reset_token(db, email)
+    return {"message": "If that email is registered, a password reset link has been sent."}
+
+from pydantic import BaseModel
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+@router.post("/reset-password")
+@limiter.limit("3/minute")
+def reset_password(request: Request, data: PasswordResetConfirm, db: Session = Depends(get_db)):
+    """
+    Resets the user's password using the provided token.
+    """
+    auth_service.reset_password(db, data.token, data.new_password)
+    return {"message": "Password has been successfully reset."}
