@@ -1,0 +1,22 @@
+# Python / Backend
+venv/
+__pycache__/
+*.pyc
+.env
+sukoon.db
+backend/.env
+
+# Node / Frontend
+node_modules/
+.next/
+out/
+build/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
