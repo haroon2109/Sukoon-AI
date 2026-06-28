@@ -286,19 +286,18 @@ export default function AnalyzeContent() {
                          initial={{ opacity: 0, y: 50, scale: 0.95 }}
                          animate={{ opacity: 1, y: 0, scale: 1 }}
                          transition={{ duration: 0.6, type: "spring", bounce: 0.4 }}
-                         className="mb-8 w-full bg-white rounded-3xl p-8 border-2 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] flex flex-col items-center justify-center relative overflow-hidden"
-                         style={{ borderColor: resultData.verdict === "false" ? "#FECACA" : resultData.verdict === "misleading" ? "#FDE68A" : resultData.verdict === "true" ? "#A7F3D0" : "#BFDBFE" }}
+                         className={`mb-8 w-full bg-white rounded-3xl p-8 border-2 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] flex flex-col items-center justify-center relative overflow-hidden ${resultData.verdict === "false" ? "border-red-200" : resultData.verdict === "misleading" ? "border-amber-200" : resultData.verdict === "true" ? "border-emerald-200" : "border-blue-200"}`}
                        >
                          {/* Background glow */}
-                         <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundColor: resultData.verdict === "false" ? "#EF4444" : resultData.verdict === "misleading" ? "#F59E0B" : resultData.verdict === "true" ? "#10B981" : "#3B82F6" }} />
+                         <div className={`absolute inset-0 opacity-10 pointer-events-none ${resultData.verdict === "false" ? "bg-red-500" : resultData.verdict === "misleading" ? "bg-amber-500" : resultData.verdict === "true" ? "bg-emerald-500" : "bg-blue-500"}`} />
                          
-                         <div className="w-24 h-24 rounded-full flex items-center justify-center shadow-lg relative z-10 mb-6" style={{ backgroundColor: resultData.verdict === "false" ? "#FEF2F2" : resultData.verdict === "misleading" ? "#FFFBEB" : resultData.verdict === "true" ? "#ECFDF5" : "#EFF6FF" }}>
+                         <div className={`w-24 h-24 rounded-full flex items-center justify-center shadow-lg relative z-10 mb-6 ${resultData.verdict === "false" ? "bg-red-50" : resultData.verdict === "misleading" ? "bg-amber-50" : resultData.verdict === "true" ? "bg-emerald-50" : "bg-blue-50"}`}>
                             {resultData.verdict === "false" ? <ShieldAlert className="w-12 h-12 text-red-500" /> : resultData.verdict === "true" ? <ShieldCheck className="w-12 h-12 text-emerald-500" /> : <ShieldAlert className="w-12 h-12 text-blue-500" />}
-                            <motion.div className="absolute inset-0 rounded-full border-2" style={{ borderColor: resultData.verdict === "false" ? "#FCA5A5" : resultData.verdict === "misleading" ? "#FCD34D" : resultData.verdict === "true" ? "#6EE7B7" : "#93C5FD" }} animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }} transition={{ duration: 2, repeat: Infinity }} />
+                            <motion.div className={`absolute inset-0 rounded-full border-2 ${resultData.verdict === "false" ? "border-red-300" : resultData.verdict === "misleading" ? "border-amber-300" : resultData.verdict === "true" ? "border-emerald-300" : "border-blue-300"}`} animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }} transition={{ duration: 2, repeat: Infinity }} />
                          </div>
 
                          <h4 className="text-[10px] font-bold text-slate-400 tracking-[0.3em] uppercase mb-2">Verdict</h4>
-                         <h2 className="text-4xl font-black uppercase font-serif tracking-wide mb-6" style={{ color: resultData.verdict === "false" ? "#DC2626" : resultData.verdict === "misleading" ? "#D97706" : resultData.verdict === "true" ? "#059669" : "#2563EB" }}>
+                         <h2 className={`text-4xl font-black uppercase font-serif tracking-wide mb-6 ${resultData.verdict === "false" ? "text-red-600" : resultData.verdict === "misleading" ? "text-amber-600" : resultData.verdict === "true" ? "text-emerald-600" : "text-blue-600"}`}>
                             {resultData.verdict}
                          </h2>
 

@@ -66,7 +66,7 @@ export default function ProfilePage() {
             {/* Avatar */}
             <div className="w-24 h-24 rounded-full border-4 border-white bg-slate-100 flex items-center justify-center text-3xl font-bold text-slate-400 absolute -top-12 shadow-md bg-gradient-to-br from-emerald-100 to-teal-50">
                {userName ? userName.charAt(0).toUpperCase() : "U"}
-               <button className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:text-emerald-600 transition-colors shadow-sm">
+               <button title="Edit Profile" aria-label="Edit Profile" className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:text-emerald-600 transition-colors shadow-sm">
                   <Edit2 className="w-4 h-4" />
                </button>
             </div>

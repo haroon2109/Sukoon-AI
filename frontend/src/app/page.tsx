@@ -88,8 +88,8 @@ export default function LandingPage() {
         {/* Dynamic Mesh Gradient Background */}
         <div className="absolute inset-0 z-0 overflow-hidden opacity-60">
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-200/50 mix-blend-multiply filter blur-[100px] animate-pulse"></div>
-          <div className="absolute top-[20%] right-[-10%] w-[40%] h-[60%] rounded-full bg-teal-200/50 mix-blend-multiply filter blur-[100px] animate-pulse" style={{ animationDelay: '2s' }}></div>
-          <div className="absolute bottom-[-10%] left-[20%] w-[50%] h-[50%] rounded-full bg-emerald-100/60 mix-blend-multiply filter blur-[100px] animate-pulse" style={{ animationDelay: '4s' }}></div>
+          <div className="absolute top-[20%] right-[-10%] w-[40%] h-[60%] rounded-full bg-teal-200/50 mix-blend-multiply filter blur-[100px] animate-pulse [animation-delay:2s]"></div>
+          <div className="absolute bottom-[-10%] left-[20%] w-[50%] h-[50%] rounded-full bg-emerald-100/60 mix-blend-multiply filter blur-[100px] animate-pulse [animation-delay:4s]"></div>
         </div>
 
         <div className="max-w-[1400px] mx-auto grid lg:grid-cols-[1fr_1.1fr] gap-12 items-center relative z-10 min-h-[85vh]">
@@ -408,8 +408,7 @@ export default function LandingPage() {
                    {/* Mock Image Area */}
                    <div className="w-full h-40 bg-slate-900 rounded-xl relative overflow-hidden mb-6 flex items-center justify-center border border-slate-200 shadow-inner">
                       <div 
-                        className="absolute inset-0 bg-cover bg-center opacity-60" 
-                        style={{ backgroundImage: "url('https://factcheckindia.co.in/wp-content/uploads/2026/06/Untitled-design-91-6.png')" }}
+                        className="absolute inset-0 bg-cover bg-center opacity-60 bg-[url('https://factcheckindia.co.in/wp-content/uploads/2026/06/Untitled-design-91-6.png')]" 
                       ></div>
                       <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/50 backdrop-blur rounded text-[10px] text-white font-mono">
                          FAKE NEWS

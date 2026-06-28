@@ -44,13 +44,7 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-[#f4f7f5] transition-colors duration-0 relative overflow-hidden">
       {/* NSA Grid overlay (only visible in dark mode) */}
-      <div className="absolute inset-0 z-0 hidden dark:block opacity-[0.15] pointer-events-none" style={{
-        backgroundImage: `
-          linear-gradient(to right, rgba(16, 185, 129, 0.5) 1px, transparent 1px),
-          linear-gradient(to bottom, rgba(16, 185, 129, 0.5) 1px, transparent 1px)
-        `,
-        backgroundSize: '40px 40px'
-      }}>
+      <div className="absolute inset-0 z-0 hidden dark:block opacity-[0.15] pointer-events-none bg-[linear-gradient(to_right,rgba(16,185,129,0.5)_1px,transparent_1px),linear-gradient(to_bottom,rgba(16,185,129,0.5)_1px,transparent_1px)] bg-[size:40px_40px]">
          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#f4f7f5_100%)]"></div>
       </div>
       {/* Mobile Sidebar Overlay */}
