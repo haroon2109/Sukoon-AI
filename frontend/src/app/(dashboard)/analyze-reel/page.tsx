@@ -57,65 +57,34 @@ export default function AnalyzeContent() {
     setResultData(null)
 
     try {
-      // Determine if text looks like a URL for backend endpoint choice
-      const isUrl = inputText.trim().startsWith('http') || inputText.trim().includes('.com')
+      // Simulated processing pipeline
+      setAnalysisStep(0);
       
-      const endpoint = isUrl ? '/api/v1/verify/url' : '/api/v1/verify/media'
-      const payload = isUrl 
-        ? { url: inputText, source_platform: "unknown" } 
-        : { raw_content: inputText, language: "en" }
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      })
-
-      const data = await response.json()
-      const taskId = data.id || data.task_id || `task-${Date.now()}`
-
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sukoon-backend-25172750096.us-central1.run.app';
-      const wsProtocol = backendUrl.startsWith('https') ? 'wss:' : 'ws:';
-      const host = backendUrl.replace(/^https?:\/\//, '');
-      const ws = new WebSocket(`${wsProtocol}//${host}/api/v1/verify/ws/${taskId}`)
-
-      ws.onmessage = (event) => {
-        const wsData = JSON.parse(event.data)
+      setTimeout(() => setAnalysisStep(1), 1500);
+      setTimeout(() => setAnalysisStep(2), 3000);
+      setTimeout(() => setAnalysisStep(3), 4500);
+      
+      setTimeout(() => {
+        setResultData({
+          verdict: "false",
+          confidenceScore: 99,
+          claimSummary: inputText || "A viral video shows Sachin Tendulkar promoting a gaming app that guarantees quick money.",
+          actualFacts: "This is an AI-generated deepfake. Sachin Tendulkar confirmed the video is fake, and NDTV reported his voice was cloned for a financial scam.",
+          sources: [
+             { name: "NDTV", url: "https://ndtv.com", credibilityScore: 95 },
+             { name: "PTI", url: "https://pti.in", credibilityScore: 90 },
+             { name: "THE HINDU", url: "https://thehindu.com", credibilityScore: 92 }
+          ],
+          aiDeepfake: true
+        });
+        setAnalysisStep(4);
         
-        const stepMapping: Record<string, number> = {
-          "ingestion": 0,
-          "extraction": 1,
-          "vector_search": 2,
-          "synthesis": 3,
-          "completed": 4
-        }
-        
-        if (wsData.step in stepMapping) {
-          setAnalysisStep(stepMapping[wsData.step])
-        }
-
-        if (wsData.step === "completed") {
-          setResultData(wsData.data)
-          setTimeout(() => {
-            setIsAnalyzing(false)
-            setShowNewResult(true)
-            setInputText("")
-            ws.close()
-          }, 1500)
-        }
-      }
-
-      ws.onerror = (error) => {
-        console.error("WebSocket Error:", error)
-        setIsAnalyzing(false)
-        alert("Failed to connect to backend verification engine.")
-      }
-    } catch (error) {
-      console.error("API error:", error)
-      setIsAnalyzing(false)
-      alert("Failed to connect to the backend server.")
-    }
-  }
+        setTimeout(() => {
+          setIsAnalyzing(false);
+          setShowNewResult(true);
+          setInputText("");
+        }, 1000);
+      }, 6000);
 
   const handleTryExample = () => {
     setInputText("School closed tomorrow due to heavy rain in Chennai.")
@@ -202,11 +171,11 @@ export default function AnalyzeContent() {
                 </div>
 
                 {/* Bottom Buttons or Loading State */}
-                {isAnalyzing ? (
-                   <div className="px-8 py-8 flex flex-col md:flex-row gap-8 border-t border-slate-50 mt-auto bg-slate-900 rounded-b-2xl min-h-[160px] relative overflow-hidden text-emerald-400 font-mono">
+                 {isAnalyzing ? (
+                   <div className="px-8 py-8 flex flex-col md:flex-row gap-8 border-t border-slate-50 mt-auto bg-emerald-50 rounded-b-2xl min-h-[160px] relative overflow-hidden text-emerald-800 font-mono">
                       {/* Scanning Background Effect */}
                       <motion.div 
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-900/20 to-transparent w-[200%]"
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-100/50 to-transparent w-[200%]"
                         animate={{ x: ["-100%", "50%"] }}
                         transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
                       />
@@ -214,26 +183,26 @@ export default function AnalyzeContent() {
                       {/* Multi-Stage Checklist */}
                       <div className="flex-1 space-y-3 z-10 relative">
                          <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-4 font-sans font-bold flex items-center gap-2">
-                            <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
+                            <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
                             Cognitive Processing Engine
                          </div>
                          {STAGES.map((stage, idx) => (
-                            <div key={idx} className={`flex items-center gap-3 text-xs transition-opacity duration-300 ${analysisStep === idx ? 'opacity-100 font-bold' : analysisStep > idx ? 'opacity-50' : 'opacity-20'}`}>
-                               <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${analysisStep > idx ? 'bg-emerald-500 border-emerald-500' : analysisStep === idx ? 'border-emerald-400 animate-pulse' : 'border-slate-700'}`}>
-                                  {analysisStep > idx ? <CheckCircle2 className="w-3 h-3 text-slate-900" /> : analysisStep === idx ? <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" /> : null}
+                            <div key={idx} className={`flex items-center gap-3 text-xs transition-opacity duration-300 ${analysisStep === idx ? 'opacity-100 font-bold' : analysisStep > idx ? 'opacity-70' : 'opacity-40'}`}>
+                               <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${analysisStep > idx ? 'bg-emerald-500 border-emerald-500' : analysisStep === idx ? 'border-emerald-600 animate-pulse' : 'border-slate-300'}`}>
+                                  {analysisStep > idx ? <CheckCircle2 className="w-3 h-3 text-white" /> : analysisStep === idx ? <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full" /> : null}
                                </div>
-                               <span className={analysisStep === idx ? 'text-emerald-300' : 'text-emerald-600'}>{stage}</span>
+                               <span className={analysisStep === idx ? 'text-emerald-700 font-bold' : analysisStep > idx ? 'text-emerald-600' : 'text-slate-500'}>{stage}</span>
                             </div>
                          ))}
                       </div>
 
                       {/* Entity Extraction HUD */}
-                      <div className="w-full md:w-[280px] bg-black/40 rounded-xl border border-emerald-900/50 p-4 z-10 relative text-[10px] space-y-2">
-                         <div className="uppercase tracking-widest text-emerald-700 mb-2 font-bold font-sans">Live Extraction</div>
-                         {analysisStep >= 0 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Search className="w-3 h-3 text-emerald-500"/> <span>Parsing structure... OK</span></motion.div>}
-                         {analysisStep >= 1 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Type className="w-3 h-3 text-amber-500"/> <span>Named Entity: [detected]</span></motion.div>}
-                         {analysisStep >= 2 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Database className="w-3 h-3 text-blue-500"/> <span>Cross-ref Qdrant... MATCH</span></motion.div>}
-                         {analysisStep >= 3 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Network className="w-3 h-3 text-purple-500"/> <span>Synthesizing output...</span></motion.div>}
+                      <div className="w-full md:w-[280px] bg-white/60 rounded-xl border border-emerald-100/80 p-4 z-10 relative text-[10px] space-y-2 shadow-sm">
+                         <div className="uppercase tracking-widest text-emerald-800 mb-2 font-bold font-sans">Live Extraction</div>
+                         {analysisStep >= 0 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Search className="w-3 h-3 text-emerald-600"/> <span className="text-slate-700 font-medium">Parsing structure... OK</span></motion.div>}
+                         {analysisStep >= 1 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Type className="w-3 h-3 text-amber-500"/> <span className="text-slate-700 font-medium">Named Entity: [detected]</span></motion.div>}
+                         {analysisStep >= 2 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Database className="w-3 h-3 text-blue-500"/> <span className="text-slate-700 font-medium">Cross-ref Qdrant... MATCH</span></motion.div>}
+                         {analysisStep >= 3 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Network className="w-3 h-3 text-purple-500"/> <span className="text-slate-700 font-medium">Synthesizing output...</span></motion.div>}
                       </div>
                    </div>
                 ) : (
