@@ -74,8 +74,10 @@ export default function AnalyzeContent() {
       const data = await response.json()
       const taskId = data.id || data.task_id || `task-${Date.now()}`
 
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(`${wsProtocol}//${window.location.host}/api/v1/verify/ws/${taskId}`)
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sukoon-backend-25172750096.us-central1.run.app';
+      const wsProtocol = backendUrl.startsWith('https') ? 'wss:' : 'ws:';
+      const host = backendUrl.replace(/^https?:\/\//, '');
+      const ws = new WebSocket(`${wsProtocol}//${host}/api/v1/verify/ws/${taskId}`)
 
       ws.onmessage = (event) => {
         const wsData = JSON.parse(event.data)
