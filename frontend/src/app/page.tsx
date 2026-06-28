@@ -495,47 +495,7 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* Metrics */}
-      <section className="py-16 px-6 bg-white border-b border-slate-100">
-        <div className="max-w-[1200px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
-           <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full border-2 border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                 <ShieldCheck className="w-6 h-6" />
-               </div>
-               <div>
-                 <h4 className="text-2xl md:text-3xl font-black text-slate-800"><AnimatedCounter value={50} suffix="K+" /></h4>
-                 <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wide">Verifications Completed</p>
-              </div>
-           </div>
-           <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full border-2 border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                 <Users className="w-6 h-6" />
-              </div>
-              <div>
-                 <h4 className="text-2xl md:text-3xl font-black text-slate-800"><AnimatedCounter value={10} suffix="K+" /></h4>
-                 <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wide">Active Peace Builders</p>
-              </div>
-           </div>
-           <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full border-2 border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                 <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <div>
-                 <h4 className="text-2xl md:text-3xl font-black text-slate-800"><AnimatedCounter value={92} suffix="%" /></h4>
-                 <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wide">Verification Accuracy</p>
-              </div>
-           </div>
-           <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full border-2 border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                 <Globe className="w-6 h-6" />
-              </div>
-              <div>
-                 <h4 className="text-2xl md:text-3xl font-black text-slate-800"><AnimatedCounter value={12} suffix="+" /></h4>
-                 <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wide">Languages Supported</p>
-              </div>
-           </div>
-        </div>
-      </section>
+
 
 
       {/* Footer Banner - Solid Green Full Width */}
