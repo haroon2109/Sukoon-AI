@@ -353,10 +353,10 @@ export default function LandingPage() {
               </div>
               <h4 className="text-2xl font-bold text-slate-800 mb-4">X (Twitter)</h4>
               <p className="text-slate-500 font-medium leading-relaxed mb-10 flex-grow">
-                Mention @SukoonAI_Bot in a tweet and our bot will reply with verified facts to de-escalate misinformation.
+                Paste the tweet link and we'll analyze the content, audio, frames, and context for you.
               </p>
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 text-slate-800 text-sm font-bold mt-auto self-start border border-slate-200">
-                <XIconCustom className="w-4 h-4 text-slate-700" /> De-escalation Bot
+                <XIconCustom className="w-4 h-4 text-slate-700" /> Tweet Analyzer
               </div>
             </div>
           </div>
