@@ -170,19 +170,33 @@ export default function LandingPage() {
                    <div className="space-y-6">
                       <div>
                          <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest mb-1 block">CLAIM</span>
-                         <p className="text-sm font-bold text-slate-800 font-serif leading-tight pr-10">This video shows violence in Bihar today.</p>
+                         <div className="flex gap-3 mb-2">
+                           <div className="w-16 h-12 bg-slate-200 rounded overflow-hidden border border-slate-300 relative shrink-0">
+                             <div className="absolute inset-0 flex items-center justify-center bg-black/20"><Play className="w-4 h-4 text-white" /></div>
+                             <img src="https://images.news18.com/ibnlive/uploads/2024/01/sachin-tendulkar-deepfake-video-2024-01-09419159f8162d3c9deebdb0744723ca-3x2.jpg" alt="Sachin Deepfake" className="w-full h-full object-cover" />
+                           </div>
+                           <p className="text-sm font-bold text-slate-800 font-serif leading-tight pr-10">A viral video shows Sachin Tendulkar promoting a gaming app that guarantees quick money.</p>
+                         </div>
                       </div>
                       <div>
                          <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mb-1 block">TRUTH</span>
-                         <p className="text-xs font-medium text-slate-600 leading-relaxed pr-10">This video is from a protest in Bangladesh in 2022.</p>
+                         <p className="text-[11px] font-medium text-slate-600 leading-relaxed pr-10">This is an AI-generated deepfake. Sachin Tendulkar confirmed the video is fake, and NDTV reported his voice was cloned for a financial scam.</p>
                       </div>
                    </div>
 
-                   {/* Progress Bar */}
-                   <div className="absolute bottom-8 left-8 right-8">
-                      <span className="text-[10px] font-bold text-slate-500 mb-2 block font-serif">Confidence Score</span>
-                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                         <div className="h-full bg-emerald-500 w-[92%] rounded-full"></div>
+                   {/* Sources & Progress Bar */}
+                   <div className="absolute bottom-6 left-8 right-8 flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                         <div className="flex gap-2 text-[8px] font-bold text-slate-400">
+                            <span>SOURCES: NDTV, PTI, THE HINDU</span>
+                         </div>
+                         <a href="https://www.ndtv.com/india-news/sachin-tendulkar-deepfake-video-gaming-app-promotion-4861234" target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-emerald-600 hover:underline">Read Full Article</a>
+                      </div>
+                      <div>
+                         <span className="text-[9px] font-bold text-slate-500 mb-1.5 block font-serif flex justify-between">Confidence Score <span className="text-emerald-600">99%</span></span>
+                         <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500 w-[99%] rounded-full"></div>
+                         </div>
                       </div>
                    </div>
                 </div>
@@ -211,13 +225,13 @@ export default function LandingPage() {
                 {/* Body */}
                 <div className="flex-1 bg-slate-50/50 flex flex-col items-center justify-center p-5">
                    <div className="w-full bg-white rounded-[1.5rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-slate-100 p-5 flex flex-col items-center text-center relative overflow-hidden">
-                      <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black tracking-widest px-3 py-1.5 rounded-bl-xl">FALSE</div>
+                      <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black tracking-widest px-3 py-1.5 rounded-bl-xl">AI DEEPFAKE</div>
                       
                       <div className="mt-6 mb-4">
                          <Shield className="w-10 h-10 text-red-500 stroke-[1.5]" />
                       </div>
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2 font-serif">CONFIDENCE</span>
-                      <span className="text-4xl font-black text-slate-800 mb-6 font-serif tracking-tight">92%</span>
+                      <span className="text-4xl font-black text-slate-800 mb-6 font-serif tracking-tight">99%</span>
                       
                       <button className="w-full py-2.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-xl hover:bg-slate-200 transition-colors">
                          View Details
@@ -229,23 +243,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Trust Logos */}
-      <section className="py-12 bg-white border-y border-slate-100 overflow-hidden">
-        <div className="max-w-[1400px] mx-auto px-6 text-center">
-          <p className="text-sm font-semibold text-slate-400 mb-8">Trusted by individuals and organizations across India</p>
-          <div className="flex flex-wrap justify-center items-center gap-10 md:gap-20 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-             <span className="text-2xl font-black tracking-tighter text-slate-800">ALT NEWS</span>
-             <span className="text-2xl font-bold font-serif text-slate-800">BOOM LIVE</span>
-             <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full border-2 border-slate-800 flex items-center justify-center"><span className="text-[10px] font-bold">PIB</span></div>
-                <span className="text-lg font-bold leading-none text-slate-800">PIB Fact<br/>Check</span>
-             </div>
-             <span className="text-2xl font-serif font-medium text-slate-800 uppercase">The Hindu</span>
-             <span className="text-2xl font-bold text-slate-800 uppercase tracking-wide">India Today</span>
-             <span className="text-2xl font-black text-slate-800">DD NEWS</span>
-          </div>
-        </div>
-      </section>
+
 
       {/* How it Works */}
       <section id="how-it-works" className="py-24 px-6 bg-slate-50 overflow-hidden">
