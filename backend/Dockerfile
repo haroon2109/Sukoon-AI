@@ -1,12 +1,14 @@
 # Use the official lightweight Python image.
-# https://hub.docker.com/_/python
 FROM python:3.11-slim
 
 # Allow statements and log messages to immediately appear in the Knative logs
-ENV PYTHONUNBUFFERED True
+ENV PYTHONUNBUFFERED=True
 
 # Set the working directory
 WORKDIR /app
+
+# Create a non-root user
+RUN groupadd -r sukoon && useradd -r -g sukoon sukoon
 
 # Copy the requirements file into the container
 COPY requirements.txt .
@@ -17,8 +19,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Expose port 8000 for the FastAPI server
+# Change ownership to the non-root user
+RUN chown -R sukoon:sukoon /app
+
+# Switch to the non-root user
+USER sukoon
+
+# Expose port
 EXPOSE 8000
 
 # Command to run the application using Uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

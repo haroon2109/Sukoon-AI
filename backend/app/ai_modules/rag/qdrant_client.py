@@ -22,9 +22,10 @@ class QdrantRAGClient:
             # 2. Connect to Hosted Qdrant Database on Google Cloud
             from qdrant_client import QdrantClient
             from qdrant_client.http.models import Distance, VectorParams
+            from app.core.config import settings
             
-            qdrant_url = os.environ.get("QDRANT_URL")
-            qdrant_api_key = os.environ.get("QDRANT_API_KEY")
+            qdrant_url = settings.QDRANT_URL
+            qdrant_api_key = settings.QDRANT_API_KEY
             
             if qdrant_url and qdrant_api_key:
                 self.qdrant_client = QdrantClient(

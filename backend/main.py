@@ -30,3 +30,39 @@ app.include_router(verify.router, prefix="/api/v1/verify", tags=["Verify"])
 @app.get("/")
 def root():
     return {"status": "Sukoon Core Running"}
+
+# --- Antigravity Agent Verification ---
+import asyncio
+from pydantic import BaseModel
+from fastapi import HTTPException
+from google.antigravity import Agent, LocalAgentConfig
+
+async def run_sukoon_agent(user_query: str):
+    # Configure the agent to run securely within your Google Cloud project bounds
+    config = LocalAgentConfig(
+        vertex=True,
+        project="arenagrid",         # Your enabled GCP project
+        location="us-central1",
+        system_instructions=(
+            "You are an autonomous Sukoon AI agent. Your mission is to investigate the provided text "
+            "or link for community hatred or fake news. You have access to Google Search and URL web context "
+            "to independently verify facts before providing a final peace verdict."
+        )
+    )
+    
+    # Initialize the runtime (automatically hooks up web search and isolated tool usage loops)
+    async with Agent(config) as agent:
+        response = await agent.chat(f"Investigate this claim: {user_query}")
+        return await response.text()
+
+class VerificationInput(BaseModel):
+    content: str
+
+@app.post("/api/verify")
+async def verify_endpoint(data: VerificationInput):
+    if not data.content:
+        raise HTTPException(status_code=400, detail="Content field cannot be empty")
+        
+    # Call your Antigravity Agent verification loop
+    result_text = await run_sukoon_agent(data.content)
+    return {"status": "success", "analysis": result_text}
