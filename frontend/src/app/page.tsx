@@ -410,7 +410,7 @@ export default function LandingPage() {
                    <div className="flex justify-between items-start mb-6">
                       <div>
                          <span className="text-xs font-bold text-red-500 uppercase tracking-wider mb-1 block">CLAIM</span>
-                         <h4 className="text-xl font-bold text-slate-800 pr-4">A viral video shows Sachin Tendulkar promoting a gaming app that guarantees quick money.</h4>
+                         <h4 className="text-xl font-bold text-slate-800 pr-4">A viral Telegram message claims that the NEET-UG 2026 Re-Exam question paper has been leaked.</h4>
                       </div>
                       <div className="text-right shrink-0">
                          <span className="text-[10px] font-bold text-slate-400 block">Confidence</span>
@@ -422,22 +422,19 @@ export default function LandingPage() {
                    <div className="w-full h-40 bg-slate-900 rounded-xl relative overflow-hidden mb-6 flex items-center justify-center border border-slate-200 shadow-inner">
                       <div 
                         className="absolute inset-0 bg-cover bg-center opacity-60" 
-                        style={{ backgroundImage: "url('https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Sachin_Tendulkar_at_MRF_Promotion_Event.jpg/800px-Sachin_Tendulkar_at_MRF_Promotion_Event.jpg')" }}
+                        style={{ backgroundImage: "url('https://factcheckindia.co.in/wp-content/uploads/2026/06/Untitled-design-91-6.png')" }}
                       ></div>
-                      <div className="relative z-10 w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center">
-                         <Play className="w-5 h-5 text-white ml-1" />
-                      </div>
                       <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/50 backdrop-blur rounded text-[10px] text-white font-mono">
-                         AI DEEPFAKE
+                         FAKE NEWS
                       </div>
                    </div>
 
                    <div>
                       <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1 block">TRUTH</span>
                       <p className="text-[14px] font-medium text-slate-700 leading-relaxed mb-3">
-                        This is an AI-generated deepfake. Sachin Tendulkar confirmed the video is fake, and NDTV reported his voice was cloned for a financial scam.
+                        This is a false claim. The National Testing Agency (NTA) confirmed there was no paper leak for the NEET-UG 2026 re-exam, and the viral screenshots are fabricated.
                       </p>
-                      <a href="https://www.ndtv.com/india-news/sachin-tendulkar-deepfake-video-promotes-gaming-app-cricket-legend-says-disturbing-4863339" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                      <a href="https://factcheckindia.co.in/2026/06/23/fact-check-neet-ug-2026-re-exam-question-paper-was-not-leaked/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
                         Read Full Article <ArrowRight className="w-3 h-3" />
                       </a>
                    </div>
@@ -446,9 +443,8 @@ export default function LandingPage() {
                 <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 mt-auto">
                    <span className="text-[10px] font-bold text-slate-400 block mb-2">Sources:</span>
                    <div className="flex gap-4 items-center">
-                     <span className="text-lg font-black text-slate-400">NDTV</span>
-                     <span className="text-sm font-bold text-slate-400">PTI</span>
-                     <span className="text-sm font-serif font-bold text-slate-400">THE HINDU</span>
+                     <span className="text-lg font-black text-slate-400">FACTCHECK INDIA</span>
+                     <span className="text-sm font-bold text-slate-400">NTA</span>
                    </div>
                 </div>
                 
