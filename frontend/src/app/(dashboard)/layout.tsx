@@ -3,6 +3,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { ThemeToggle } from "@/components/ThemeToggle"
+import GoogleTranslate from "@/components/shared/GoogleTranslate"
 import UserProfile from "./UserProfile"
 import { Shield, Home, Search, History, Settings, Bell, Bookmark, BarChart3, HelpCircle, User, Moon, Sun, ChevronDown, Users, ChevronRight, Headset, Menu, X, Heart } from "lucide-react"
 
@@ -43,6 +44,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-[#f4f7f5] transition-colors duration-0 relative overflow-hidden">
+      <GoogleTranslate />
       {/* NSA Grid overlay (only visible in dark mode) */}
       <div className="absolute inset-0 z-0 hidden dark:block opacity-[0.15] pointer-events-none bg-[linear-gradient(to_right,rgba(16,185,129,0.5)_1px,transparent_1px),linear-gradient(to_bottom,rgba(16,185,129,0.5)_1px,transparent_1px)] bg-[size:40px_40px]">
          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#f4f7f5_100%)]"></div>

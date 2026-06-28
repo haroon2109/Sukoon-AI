@@ -155,3 +155,9 @@
 .dark .border-slate-100, .dark.border-slate-100 {
   border-color: #ecfdf5 !important; /* emerald-50 */
 }
+/* Hide Google Translate UI Elements */
+body { top: 0 !important; }
+.skiptranslate iframe, .skiptranslate { display: none !important; }
+#goog-gt-tt, .goog-te-balloon-frame { display: none !important; }
+.goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
+

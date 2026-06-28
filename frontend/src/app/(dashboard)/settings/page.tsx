@@ -18,6 +18,11 @@ export default function SettingsPage() {
       setUserName(storedName)
     }
 
+    const storedLanguage = localStorage.getItem('sukoon_language')
+    if (storedLanguage) {
+      setLanguage(storedLanguage)
+    }
+
     let storedDate = localStorage.getItem('sukoon_join_date')
     if (!storedDate) {
       const today = new Date();
@@ -26,6 +31,14 @@ export default function SettingsPage() {
     }
     setJoinDate(storedDate)
   }, [])
+
+  const handleLanguageChange = (lang: string) => {
+    setLanguage(lang)
+    setIsLanguageMenuOpen(false)
+    localStorage.setItem('sukoon_language', lang)
+    // Reload page to trigger Google Translate widget with new cookie
+    window.location.reload()
+  }
 
   const handleDeleteAccount = () => {
     if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
@@ -112,7 +125,7 @@ export default function SettingsPage() {
                           {isLanguageMenuOpen && (
                              <div className="absolute right-0 top-full mt-1 w-[100px] bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-10">
                                 {languages.map((lang) => (
-                                   <button key={lang} className="w-full text-left px-4 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-colors" onClick={() => { setLanguage(lang); setIsLanguageMenuOpen(false); }}>
+                                   <button key={lang} className="w-full text-left px-4 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-colors" onClick={() => handleLanguageChange(lang)}>
                                       {lang}
                                    </button>
                                 ))}
