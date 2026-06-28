@@ -172,15 +172,14 @@ export default function LandingPage() {
                          <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest mb-1 block">CLAIM</span>
                          <div className="flex gap-3 mb-2">
                            <div className="w-16 h-12 bg-slate-200 rounded overflow-hidden border border-slate-300 relative shrink-0">
-                             <div className="absolute inset-0 flex items-center justify-center bg-black/20"><Play className="w-4 h-4 text-white" /></div>
-                             <img src="https://images.news18.com/ibnlive/uploads/2024/01/sachin-tendulkar-deepfake-video-2024-01-09419159f8162d3c9deebdb0744723ca-3x2.jpg" alt="Sachin Deepfake" className="w-full h-full object-cover" />
+                             <img src="https://factcheckindia.co.in/wp-content/uploads/2026/06/Untitled-design-91-6.png" alt="NEET-UG Fake News" className="w-full h-full object-cover" />
                            </div>
-                           <p className="text-sm font-bold text-slate-800 font-serif leading-tight pr-10">A viral video shows Sachin Tendulkar promoting a gaming app that guarantees quick money.</p>
+                           <p className="text-sm font-bold text-slate-800 font-serif leading-tight pr-10">A viral Telegram message claims that the NEET-UG 2026 Re-Exam question paper has been leaked.</p>
                          </div>
                       </div>
                       <div>
                          <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mb-1 block">TRUTH</span>
-                         <p className="text-[11px] font-medium text-slate-600 leading-relaxed pr-10">This is an AI-generated deepfake. Sachin Tendulkar confirmed the video is fake, and NDTV reported his voice was cloned for a financial scam.</p>
+                         <p className="text-[11px] font-medium text-slate-600 leading-relaxed pr-10">This is a false claim. The National Testing Agency (NTA) confirmed there was no paper leak for the NEET-UG 2026 re-exam, and the viral screenshots are fabricated.</p>
                       </div>
                    </div>
 
@@ -188,9 +187,9 @@ export default function LandingPage() {
                    <div className="absolute bottom-6 left-8 right-8 flex flex-col gap-3">
                       <div className="flex items-center justify-between">
                          <div className="flex gap-2 text-[8px] font-bold text-slate-400">
-                            <span>SOURCES: NDTV, PTI, THE HINDU</span>
+                            <span>SOURCES: FACTCHECK INDIA, NTA</span>
                          </div>
-                         <a href="https://www.ndtv.com/india-news/sachin-tendulkar-deepfake-video-gaming-app-promotion-4861234" target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-emerald-600 hover:underline">Read Full Article</a>
+                         <a href="https://factcheckindia.co.in/2026/06/23/fact-check-neet-ug-2026-re-exam-question-paper-was-not-leaked/" target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-emerald-600 hover:underline">Read Full Article</a>
                       </div>
                       <div>
                          <span className="text-[9px] font-bold text-slate-500 mb-1.5 block font-serif flex justify-between">Confidence Score <span className="text-emerald-600">99%</span></span>
@@ -225,7 +224,7 @@ export default function LandingPage() {
                 {/* Body */}
                 <div className="flex-1 bg-slate-50/50 flex flex-col items-center justify-center p-5">
                    <div className="w-full bg-white rounded-[1.5rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-slate-100 p-5 flex flex-col items-center text-center relative overflow-hidden">
-                      <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black tracking-widest px-3 py-1.5 rounded-bl-xl">AI DEEPFAKE</div>
+                      <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black tracking-widest px-3 py-1.5 rounded-bl-xl">FAKE NEWS</div>
                       
                       <div className="mt-6 mb-4">
                          <Shield className="w-10 h-10 text-red-500 stroke-[1.5]" />
