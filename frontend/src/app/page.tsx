@@ -122,7 +122,7 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-5 pt-4">
-              <Link href="/analyze-reel" className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#2E8C6A] hover:bg-[#257356] text-white font-semibold text-base transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30">
+              <Link href="/onboarding" className="w-full sm:w-auto px-8 py-4 rounded-full bg-[#2E8C6A] hover:bg-[#257356] text-white font-semibold text-base transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30">
                 Get Started <ArrowRight className="w-5 h-5" />
               </Link>
               <Link href="#how-it-works" className="w-full sm:w-auto px-8 py-4 rounded-full bg-white text-slate-800 font-semibold hover:bg-slate-50 border border-slate-200 transition-all flex items-center justify-center gap-3 shadow-sm">
