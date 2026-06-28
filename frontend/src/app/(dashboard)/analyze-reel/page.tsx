@@ -85,6 +85,11 @@ export default function AnalyzeContent() {
           setInputText("");
         }, 1000);
       }, 6000);
+    } catch (error) {
+      console.error(error);
+      setIsAnalyzing(false);
+    }
+  }
 
   const handleTryExample = () => {
     setInputText("School closed tomorrow due to heavy rain in Chennai.")

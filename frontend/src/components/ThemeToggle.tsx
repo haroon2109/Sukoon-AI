@@ -35,8 +35,7 @@ export function ThemeToggle() {
       Math.max(x, innerWidth - x),
       Math.max(y, innerHeight - y)
     )
-
-    // @ts-expect-error - startViewTransition is not fully supported in all TS versions
+    // startViewTransition is now supported
     const transition = document.startViewTransition(() => {
       return import('react-dom').then(({ flushSync }) => {
         flushSync(() => {
