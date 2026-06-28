@@ -13,7 +13,7 @@ export default function SupportPage() {
           <div className="max-w-xl pr-6">
              <h1 className="text-3xl font-bold text-slate-800 font-serif mb-2">Help & Support</h1>
              <p className="text-slate-500 font-medium text-sm max-w-md leading-relaxed">
-               We're here to help you. Find answers, guides and support to make your experience better.
+               We&apos;re here to help you. Find answers, guides and support to make your experience better.
              </p>
           </div>
           <div className="hidden md:block w-[320px] shrink-0">
@@ -139,7 +139,7 @@ export default function SupportPage() {
                          <ChevronDown className="w-4 h-4 text-slate-400 transition-transform group-open:rotate-180" />
                       </summary>
                       <div className="px-5 pb-4 text-[11px] text-slate-500 leading-relaxed bg-slate-50/50">
-                         If you believe an analysis result is incorrect, you can click the "Flag as incorrect" button at the bottom of the result card. This helps our team review the claim and improve the AI model.
+                         If you believe an analysis result is incorrect, you can click the &quot;Flag as incorrect&quot; button at the bottom of the result card. This helps our team review the claim and improve the AI model.
                       </div>
                    </details>
                    <details className="group border-b border-slate-100">
@@ -202,7 +202,7 @@ export default function SupportPage() {
              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
                 <h3 className="text-[13px] font-bold text-slate-800 mb-1">Contact Support</h3>
                 <p className="text-[11px] text-slate-500 font-medium mb-5">
-                   Can't find what you're looking for? <br/>Our support team is ready to help you.
+                   Can&apos;t find what you&apos;re looking for? <br/>Our support team is ready to help you.
                 </p>
                 
                 <div className="space-y-2 mb-4">
