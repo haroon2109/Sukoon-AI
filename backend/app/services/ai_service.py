@@ -11,9 +11,7 @@ REGION = os.getenv("GCP_REGION", "us-central1")
 
 # 1. Initialize the modern Google Gen AI Client pointing to Vertex AI
 client = genai.Client(
-    vertexai=True,
-    project=PROJECT_ID,
-    location=REGION
+    api_key=os.getenv("GEMINI_API_KEY")
 )
 
 # 2. Define the exact persona for Sukoon AI

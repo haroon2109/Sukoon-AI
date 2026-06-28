@@ -62,10 +62,9 @@ from google.antigravity import Agent, LocalAgentConfig
 
 async def run_sukoon_agent(user_query: str):
     # Configure the agent to run securely within your Google Cloud project bounds
+    import os
     config = LocalAgentConfig(
-        vertex=True,
-        project="arenagrid",         # Your enabled GCP project
-        location="us-central1",
+        api_key=os.getenv("GEMINI_API_KEY"),
         system_instructions=(
             "You are an autonomous Sukoon AI agent. Your mission is to investigate the provided text "
             "or link for community hatred or fake news. You have access to Google Search and URL web context "
