@@ -85,7 +85,7 @@ export default function PeaceQuotesPage() {
                 </div>
                 
                 <p className="text-xl text-slate-700 font-serif leading-relaxed mb-8">
-                  "{quote.text}"
+                  &quot;{quote.text}&quot;
                 </p>
               </div>
 

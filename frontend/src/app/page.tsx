@@ -163,7 +163,7 @@ export default function LandingPage() {
                       <div className="w-8 h-8 rounded-full bg-emerald-100/80 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0"><CheckCircle2 className="w-4 h-4" /></div>
                       <div>
                          <h5 className="text-sm font-bold text-slate-800 font-serif">Verification Complete</h5>
-                         <p className="text-[11px] text-slate-500">We've verified the content and found the truth.</p>
+                         <p className="text-[11px] text-slate-500">We&apos;ve verified the content and found the truth.</p>
                       </div>
                    </div>
 
@@ -323,7 +323,7 @@ export default function LandingPage() {
               </div>
               <h4 className="text-2xl font-bold text-slate-800 mb-4">Instagram</h4>
               <p className="text-slate-500 font-medium leading-relaxed mb-10 flex-grow">
-                Paste any Reel link and we'll analyze the content, audio, frames, and context for you.
+                Paste any Reel link and we&apos;ll analyze the content, audio, frames, and context for you.
               </p>
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-pink-50 text-pink-700 text-sm font-bold mt-auto self-start border border-pink-100">
                 <InstagramIconCustom className="w-4 h-4 text-pink-600" /> Reel Analyzer
@@ -337,7 +337,7 @@ export default function LandingPage() {
               </div>
               <h4 className="text-2xl font-bold text-slate-800 mb-4">X (Twitter)</h4>
               <p className="text-slate-500 font-medium leading-relaxed mb-10 flex-grow">
-                Paste the tweet link and we'll analyze the content, audio, frames, and context for you.
+                Paste the tweet link and we&apos;ll analyze the content, audio, frames, and context for you.
               </p>
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 text-slate-800 text-sm font-bold mt-auto self-start border border-slate-200">
                 <XIconCustom className="w-4 h-4 text-slate-700" /> Tweet Analyzer
@@ -435,7 +435,7 @@ export default function LandingPage() {
                 </div>
                 
                 <div className="p-4 bg-emerald-50 text-center border-t border-emerald-100">
-                   <p className="text-xs font-bold text-emerald-700">Let's keep our communities peaceful.</p>
+                   <p className="text-xs font-bold text-emerald-700">Let&apos;s keep our communities peaceful.</p>
                    <p className="text-xs font-medium text-emerald-600">Verify before you share. 🌿</p>
                 </div>
               </div>

@@ -9,6 +9,7 @@ export function ThemeToggle() {
   const { setTheme, theme, resolvedTheme } = useTheme()
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     setMounted(true)
   }, [])
 
@@ -35,7 +36,7 @@ export function ThemeToggle() {
       Math.max(y, innerHeight - y)
     )
 
-    // @ts-ignore
+    // @ts-expect-error
     const transition = document.startViewTransition(() => {
       return import('react-dom').then(({ flushSync }) => {
         flushSync(() => {

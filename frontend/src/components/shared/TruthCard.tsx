@@ -101,7 +101,7 @@ export function TruthCard({
         <div className="mb-8">
           <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-3 text-slate-400`}>Original Claim</h3>
           <p className="text-slate-800 font-medium text-lg leading-relaxed">
-            "{claimSummary}"
+            &quot;{claimSummary}&quot;
           </p>
         </div>
 
