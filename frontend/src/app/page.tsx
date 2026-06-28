@@ -170,32 +170,19 @@ export default function LandingPage() {
                    <div className="space-y-6">
                       <div>
                          <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest mb-1 block">CLAIM</span>
-                         <div className="flex gap-3 mb-2">
-                           <div className="w-16 h-12 bg-slate-200 rounded overflow-hidden border border-slate-300 relative shrink-0">
-                             <img src="https://factcheckindia.co.in/wp-content/uploads/2026/06/Untitled-design-91-6.png" alt="NEET-UG Fake News" className="w-full h-full object-cover" />
-                           </div>
-                           <p className="text-sm font-bold text-slate-800 font-serif leading-tight pr-10">A viral Telegram message claims that the NEET-UG 2026 Re-Exam question paper has been leaked.</p>
-                         </div>
+                         <p className="text-sm font-bold text-slate-800 font-serif leading-tight pr-10">This video shows violence in Bihar today.</p>
                       </div>
                       <div>
                          <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mb-1 block">TRUTH</span>
-                         <p className="text-[11px] font-medium text-slate-600 leading-relaxed pr-10">This is a false claim. The National Testing Agency (NTA) confirmed there was no paper leak for the NEET-UG 2026 re-exam, and the viral screenshots are fabricated.</p>
+                         <p className="text-xs font-medium text-slate-600 leading-relaxed pr-10">This video is from a protest in Bangladesh in 2022.</p>
                       </div>
                    </div>
 
-                   {/* Sources & Progress Bar */}
-                   <div className="absolute bottom-6 left-8 right-8 flex flex-col gap-3">
-                      <div className="flex items-center justify-between">
-                         <div className="flex gap-2 text-[8px] font-bold text-slate-400">
-                            <span>SOURCES: FACTCHECK INDIA, NTA</span>
-                         </div>
-                         <a href="https://factcheckindia.co.in/2026/06/23/fact-check-neet-ug-2026-re-exam-question-paper-was-not-leaked/" target="_blank" rel="noopener noreferrer" className="text-[9px] font-bold text-emerald-600 hover:underline">Read Full Article</a>
-                      </div>
-                      <div>
-                         <span className="text-[9px] font-bold text-slate-500 mb-1.5 block font-serif flex justify-between">Confidence Score <span className="text-emerald-600">99%</span></span>
-                         <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500 w-[99%] rounded-full"></div>
-                         </div>
+                   {/* Progress Bar */}
+                   <div className="absolute bottom-8 left-8 right-8">
+                      <span className="text-[10px] font-bold text-slate-500 mb-2 block font-serif">Confidence Score</span>
+                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                         <div className="h-full bg-emerald-500 w-[92%] rounded-full"></div>
                       </div>
                    </div>
                 </div>
@@ -224,13 +211,13 @@ export default function LandingPage() {
                 {/* Body */}
                 <div className="flex-1 bg-slate-50/50 flex flex-col items-center justify-center p-5">
                    <div className="w-full bg-white rounded-[1.5rem] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-slate-100 p-5 flex flex-col items-center text-center relative overflow-hidden">
-                      <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black tracking-widest px-3 py-1.5 rounded-bl-xl">FAKE NEWS</div>
+                      <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-black tracking-widest px-3 py-1.5 rounded-bl-xl">FALSE</div>
                       
                       <div className="mt-6 mb-4">
                          <Shield className="w-10 h-10 text-red-500 stroke-[1.5]" />
                       </div>
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2 font-serif">CONFIDENCE</span>
-                      <span className="text-4xl font-black text-slate-800 mb-6 font-serif tracking-tight">99%</span>
+                      <span className="text-4xl font-black text-slate-800 mb-6 font-serif tracking-tight">92%</span>
                       
                       <button className="w-full py-2.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-xl hover:bg-slate-200 transition-colors">
                          View Details
