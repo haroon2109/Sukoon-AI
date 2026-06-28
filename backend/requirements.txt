@@ -30,7 +30,7 @@ packaging==26.2
 passlib==1.7.4
 portalocker==3.2.0
 prompt_toolkit==3.0.52
-protobuf==7.35.1
+protobuf
 psycopg2-binary==2.9.12
 pyasn1==0.6.3
 pydantic==2.13.4
