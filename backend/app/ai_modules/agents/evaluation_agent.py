@@ -30,9 +30,9 @@ class EvaluationAgent:
         Original Text/Claim: "{text}"
         
         Respond ONLY in a valid JSON format with the keys: 
-        - 'verdict' (Safe, Misleading, Toxic)
+        - 'verdict' (Verified, Misleading, False)
         - 'confidence_score' (0.0 to 1.0)
-        - 'explanation' (a concise, neutral summary of the facts based on your live search)
+        - 'explanation' (a concise, neutral summary of the facts based on your live search. YOU MUST explicitly name the fact-checking site (e.g. 'According to AltNews...') you used to reach your conclusion to prove lack of bias)
         - 'flags' (an array of categories triggered, e.g., ["misinformation", "hate speech"])
         - 'toxicity_score' (Integer 0-100: How aggressively the piece tries to incite anger)
         - 'factuality_score' (Integer 0-100: How much can be cross-verified by reputable sources)
@@ -79,9 +79,9 @@ class EvaluationAgent:
         Original Text/Claim: "{text}"
         
         Respond ONLY in a valid JSON format with the keys: 
-        - 'verdict' (Safe, Misleading, Toxic)
+        - 'verdict' (Verified, Misleading, False)
         - 'confidence_score' (0.0 to 1.0)
-        - 'explanation' (a concise, neutral summary of the facts highlighting any structural inconsistencies discovered)
+        - 'explanation' (a concise, neutral summary of the facts highlighting any structural inconsistencies discovered. YOU MUST explicitly name the fact-checking site used to prove lack of bias)
         - 'flags' (an array of categories triggered)
         - 'toxicity_score' (Integer 0-100: How aggressively the piece tries to incite anger)
         - 'factuality_score' (Integer 0-100: How much can be cross-verified by reputable sources)

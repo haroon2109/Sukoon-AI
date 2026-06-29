@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from app.api.v1.routers import auth, verification
@@ -58,7 +58,7 @@ def root():
 import asyncio
 from pydantic import BaseModel
 from fastapi import HTTPException
-from google.antigravity import Agent, LocalAgentConfig
+from app.services.ai_engine import verify_multimodal_content
 
 async def run_sukoon_agent(user_query: str):
     # Configure the agent to run securely within your Google Cloud project bounds
@@ -77,15 +77,45 @@ async def run_sukoon_agent(user_query: str):
         response = await agent.chat(f"Investigate this claim: {user_query}")
         return await response.text()
 
-class VerificationInput(BaseModel):
+class TextRequest(BaseModel):
     content: str
 
-@app.post("/api/verify")
+# Pipeline 1 & 2: Handles Raw Text & Pasted Article Links
+@app.post("/api/verify/text")
 @limiter.limit("10/minute")
-async def verify_endpoint(request: Request, data: VerificationInput):
-    if not data.content:
-        raise HTTPException(status_code=400, detail="Content field cannot be empty")
+async def verify_text_endpoint(request: Request, payload: TextRequest):
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Content string is empty.")
+    
+    # If it's a link, we pass the URL string directly. 
+    # Gemini handles browsing context automatically if given the URL in a grounded prompt.
+    result = await verify_multimodal_content(text_content=payload.content)
+    if result["status"] == "error":
+        raise HTTPException(status_code=500, detail=result["message"])
+    return result
+
+# Pipeline 3: Handles Uploaded Images / Videos
+@app.post("/api/verify/media")
+@limiter.limit("5/minute")
+async def verify_media_endpoint(
+    request: Request,
+    content: str = Form(None), # Optional accompanying text text description
+    file: UploadFile = File(...)
+):
+    # Validate accepted media types for safety boundaries
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "video/mp4"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}")
         
-    # Call your Antigravity Agent verification loop
-    result_text = await run_sukoon_agent(data.content)
-    return {"status": "success", "analysis": result_text}
+    # Read raw bytes straight out of the multi-part request stream
+    file_bytes = await file.read()
+    
+    result = await verify_multimodal_content(
+        text_content=content,
+        media_bytes=file_bytes,
+        mime_type=file.content_type
+    )
+    
+    if result["status"] == "error":
+        raise HTTPException(status_code=500, detail=result["message"])
+    return result

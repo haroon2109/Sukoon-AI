@@ -25,14 +25,16 @@ async def get_verification_result(request: Request, request_id: UUID, db: Sessio
     if verification.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to access this resource")
         
+    analysis = verification.analysis_results or {}
+    
     return {
         "request_id": str(verification.id),
         "status": verification.status,
         "verdict": verification.verdict or "misleading",
-        "confidence_score": 0.98,
-        "matched_context": "The referenced audio is from a 2020 lockdown drill and does not apply to the current situation. Local health authorities have confirmed no lockdowns are planned.",
-        "peace_message": "Take a deep breath. This information is outdated. You and your family are safe to go about your normal routines today.",
-        "source_urls": ["https://www.who.int", "https://local-health-ministry.gov"],
-        "toxicity_score": 0.1,
-        "hate_speech_score": 0.05
+        "confidence_score": analysis.get("confidence_score", 0.98),
+        "matched_context": analysis.get("explanation", "Verification pending or unavailable."),
+        "peace_message": analysis.get("suggested_action", "No further action needed."),
+        "source_urls": analysis.get("sourceCitations", []),
+        "toxicity_score": analysis.get("toxicity_score", 0.0),
+        "hate_speech_score": analysis.get("community_impact_rating", 0.0)
     }

@@ -159,8 +159,8 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
         result = await asyncio.to_thread(evaluation_agent.evaluate, claim_text)
         
         # 3. Update Verification record in DB
-        raw_verdict = result.get("verdict", "Safe").lower()
-        if "safe" in raw_verdict:
+        raw_verdict = str(result.get("verdict", "Verified")).lower()
+        if any(word in raw_verdict for word in ["verified", "true", "safe"]):
             frontend_verdict = "verified"
         elif "misleading" in raw_verdict:
             frontend_verdict = "misleading"

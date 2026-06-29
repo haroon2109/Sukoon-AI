@@ -15,9 +15,16 @@ class GeminiClient:
         # Configure search grounding natively
         self.config = types.GenerateContentConfig(
             tools=[types.Tool(google_search=types.GoogleSearch())],
-            temperature=0.2,
-            response_mime_type="application/json",
-            system_instruction="You are Sukoon AI. Check the user input against live, trusted news sources using Google Search and provide a peace/truth verdict."
+            temperature=0.1,
+            system_instruction=(
+                "You are Sukoon AI, an unbiased, objective fact-checking system. "
+                "CRITICAL: You must cross-reference the user input EXCLUSIVELY against recognized "
+                "authoritative Indian fact-checkers such as PIB Fact Check, Alt News, and BOOM Live using Google Search. "
+                "To do this, append 'site:pib.gov.in OR site:altnews.in OR site:boomlive.in' to your internal search queries. "
+                "Do NOT rely on generalized public opinion, blogs, or biased news outlets. "
+                "Maintain a purely clinical and factual tone. "
+                "Provide an objective peace/truth verdict based strictly on verifiable facts."
+            )
         )
 
     def _extract_grounding_sources(self, response) -> list:
@@ -49,7 +56,16 @@ class GeminiClient:
                 contents=prompt,
                 config=self.config
             )
-            result_json = json.loads(response.text)
+            
+            raw_text = response.text.strip()
+            if raw_text.startswith("```json"):
+                raw_text = raw_text[7:]
+            if raw_text.startswith("```"):
+                raw_text = raw_text[3:]
+            if raw_text.endswith("```"):
+                raw_text = raw_text[:-3]
+                
+            result_json = json.loads(raw_text.strip())
             
             # Inject grounding sources into the final JSON response
             grounding_sources = self._extract_grounding_sources(response)
