@@ -1,80 +1,90 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { UploadCloud, Link as LinkIcon, FileText, Loader2, PlayCircle, ShieldAlert, CheckCircle2 } from "lucide-react"
+import { UploadCloud, Link as LinkIcon, FileText, Loader2 } from "lucide-react"
 import { TruthCard } from "@/components/shared/TruthCard"
 import { motion, AnimatePresence } from "framer-motion"
-import { VerificationRecord, getRandomVerification } from "@/lib/mockData"
+import { VerificationRecord } from "@/lib/mockData"
 
 export default function VerifyPage() {
   const [step, setStep] = useState<"input" | "processing" | "result">("input")
   const [inputType, setInputType] = useState<"media" | "url" | "text">("media")
   const [resultData, setResultData] = useState<VerificationRecord | null>(null)
-  
-  // WebSocket State
   const [processingStage, setProcessingStage] = useState<string>("Initializing pipeline...")
-  const wsRef = useRef<WebSocket | null>(null)
+  const [textContent, setTextContent] = useState("")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   
-  const handleSimulateUpload = async () => {
+  const handleVerify = async () => {
+    if (inputType !== "media" && !textContent.trim()) return;
+    if (inputType === "media" && !selectedFile) return;
+
     setStep("processing")
-    setProcessingStage("Connecting to server...")
+    setProcessingStage("Connecting to Sukoon AI backend...")
     
     try {
-      // Create actual backend task
-      const response = await fetch("/api/v1/verify/media", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ raw_content: "Simulated upload payload", language: "en" })
-      })
-      
-      const data = await response.json()
-      const taskId = data.id || data.task_id || `task-${Date.now()}` // Fallback if needed
-      
-      // Connect to our FastAPI WebSocket endpoint
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://sukoon-backend-25172750096.us-central1.run.app';
-      const wsProtocol = backendUrl.startsWith('https') ? 'wss:' : 'ws:';
-      const host = backendUrl.replace(/^https?:\/\//, '');
-      const ws = new WebSocket(`${wsProtocol}//${host}/api/v1/verify/ws/${taskId}`)
-      wsRef.current = ws
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+      let response;
 
-      ws.onmessage = (event) => {
-        const payload = JSON.parse(event.data)
-        setProcessingStage(payload.message)
-        if (payload.step === "completed") {
-          setTimeout(() => {
-            setResultData(payload.data || getRandomVerification())
-            setStep("result")
-            ws.close()
-          }, 1000)
+      if (inputType === "media") {
+        setProcessingStage("Uploading media and running OCR...")
+        const formData = new FormData()
+        formData.append("file", selectedFile!)
+        if (textContent) {
+            formData.append("content", textContent)
         }
+        
+        response = await fetch(`${baseUrl}/api/verify/media`, {
+          method: "POST",
+          body: formData
+        })
+      } else {
+        setProcessingStage("Extracting claims and retrieving RAG evidence...")
+        response = await fetch(`${baseUrl}/api/verify/text`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: textContent })
+        })
       }
       
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error)
-        setProcessingStage("Falling back to standard connection...")
-        setTimeout(() => {
-          setResultData(getRandomVerification())
-          setStep("result")
-        }, 2500)
+      setProcessingStage("Analyzing reasoning and generating peace verdict...")
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || "Verification failed")
       }
-    } catch (error) {
-      console.error("API error:", error)
-      setProcessingStage("Failed to connect. Using offline mode...")
-      setTimeout(() => {
-        setResultData(getRandomVerification())
+
+      const data = await response.json()
+      
+      if (data.status === "success") {
+        // Map backend output to frontend TruthCard props
+        setResultData({
+          id: `v_${Date.now()}`,
+          verdict: data.data.verdict,
+          confidenceScore: data.data.confidence_score,
+          claimSummary: data.data.claimSummary || textContent,
+          evidenceFound: data.data.evidenceFound,
+          aiExplanation: data.data.aiExplanation || data.data.explanation,
+          sourceCitations: data.data.sourceCitations || []
+        })
         setStep("result")
-      }, 2000)
+      } else {
+        throw new Error(data.message)
+      }
+      
+    } catch (error: any) {
+      console.error("API error:", error)
+      alert(error.message)
+      setStep("input")
     }
   }
 
-  // Cleanup WebSocket on unmount
-  useEffect(() => {
-    return () => {
-      if (wsRef.current) wsRef.current.close()
-    }
-  }, [])
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          setSelectedFile(e.target.files[0])
+      }
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -114,12 +124,38 @@ export default function VerifyPage() {
                 </button>
               </div>
 
-              <div className="bg-white rounded-3xl p-12 text-center hover:bg-stone-50 transition-colors cursor-pointer group shadow-[0_8px_30px_rgb(0,0,0,0.04)]" onClick={handleSimulateUpload}>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-20 h-20 bg-[#F9FAFB] text-slate-400 border border-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:text-teal-600 transition-colors">
-                  {inputType === "media" ? <UploadCloud className="w-8 h-8" /> : inputType === "url" ? <LinkIcon className="w-8 h-8" /> : <FileText className="w-8 h-8" />}
-                </motion.div>
-                <h3 className="text-xl font-semibold text-slate-800 mb-2 tracking-tight">Click to browse or drag and drop</h3>
-                <p className="text-slate-400 text-sm font-light">Supports WhatsApp Audio, Video, Images, or text snippets.</p>
+              <div className="bg-white rounded-3xl p-8 text-center transition-colors">
+                {inputType === "media" ? (
+                  <div className="space-y-4">
+                    <label className="block text-slate-700 font-medium text-left">Upload Audio, Video, or Image</label>
+                    <input type="file" onChange={handleFileChange} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" />
+                    <textarea 
+                        className="w-full mt-4 p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20" 
+                        rows={3} 
+                        placeholder="(Optional) Add any caption that came with this forward..."
+                        value={textContent}
+                        onChange={(e) => setTextContent(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                     <textarea 
+                        className="w-full p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20" 
+                        rows={6} 
+                        placeholder={inputType === "url" ? "Paste a news article or social media link here..." : "Paste the suspicious WhatsApp forward here..."}
+                        value={textContent}
+                        onChange={(e) => setTextContent(e.target.value)}
+                    />
+                  </div>
+                )}
+                
+                <Button 
+                    onClick={handleVerify} 
+                    className="mt-6 rounded-full px-8 py-6 text-lg w-full bg-slate-900 hover:bg-slate-800"
+                    disabled={inputType === "media" ? !selectedFile : !textContent.trim()}
+                >
+                    Run Forensic Verification
+                </Button>
               </div>
             </Card>
           </motion.div>
@@ -135,7 +171,6 @@ export default function VerifyPage() {
           >
             <Card className="p-12 border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl text-center flex flex-col items-center justify-center min-h-[400px] bg-white">
               <div className="relative mb-10">
-                {/* Calm pulsing glow instead of aggressive ping */}
                 <div className="absolute inset-0 bg-teal-100 rounded-full blur-2xl animate-pulse opacity-50 scale-150"></div>
                 <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center relative z-10 border border-stone-100 shadow-sm">
                   <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
@@ -167,7 +202,11 @@ export default function VerifyPage() {
           >
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-xl font-semibold text-slate-900">Verification Complete</h2>
-              <Button variant="outline" onClick={() => setStep("input")} className="rounded-full">Verify Another</Button>
+              <Button variant="outline" onClick={() => {
+                  setStep("input")
+                  setTextContent("")
+                  setSelectedFile(null)
+              }} className="rounded-full">Verify Another</Button>
             </div>
             
             <div className="flex justify-center">

@@ -61,6 +61,8 @@ from fastapi import HTTPException
 from app.services.ai_engine import verify_multimodal_content
 from app.services.rag_service import rag_service
 from app.agents.claim_extractor import extract_claim_from_text
+from app.services.scraper import is_url, scrape_url
+from app.services.downloader import is_social_video_url, download_social_video
 
 async def run_sukoon_agent(user_query: str):
     # Configure the agent to run securely within your Google Cloud project bounds
@@ -130,11 +132,63 @@ class TextRequest(BaseModel):
 @app.post("/api/verify/text")
 @limiter.limit("10/minute")
 async def verify_text_endpoint(request: Request, payload: TextRequest):
-    if not payload.content.strip():
+    content = payload.content.strip()
+    if not content:
         raise HTTPException(status_code=400, detail="Content string is empty.")
+        
+    # Check if input is a URL
+    if is_url(content):
+        if is_social_video_url(content):
+            video_bytes, text_metadata, mime_type = download_social_video(content)
+            if video_bytes:
+                # If we successfully downloaded a video, process it with the multimodal flow
+                clean_claim = await extract_claim_from_text(text_metadata)
+                
+                context_str = "NO EVIDENCE FOUND IN KNOWLEDGE BASE."
+                rag_results = []
+                if clean_claim:
+                    rag_results = rag_service.retrieve_context(clean_claim)
+                    if rag_results:
+                        context_str = "\n".join([r["text"] for r in rag_results])
+                
+                result = await verify_multimodal_content(
+                    text_content=clean_claim,
+                    media_bytes=video_bytes,
+                    mime_type=mime_type,
+                    retrieved_context=context_str
+                )
+                
+                if result["status"] == "error":
+                    raise HTTPException(status_code=500, detail=result["message"])
+                    
+                raw_conf = result["data"].get("confidence_score", 50.0)
+                dynamic_conf = calculate_dynamic_confidence(rag_results, raw_conf)
+                
+                if len(rag_results) < 2:
+                    result["data"]["verdict"] = "⚪ Unable to Verify"
+                    dynamic_conf = 0.0
+                    result["data"]["explanation"] = "Insufficient evidence to confidently verify this claim. Minimum 2 trusted sources required. " + result["data"].get("explanation", "")
+                
+                result["data"]["confidence_score"] = dynamic_conf
+                result["data"]["claimSummary"] = clean_claim
+                result["data"]["evidenceFound"] = "\n\n".join([r["text"] for r in rag_results]) if rag_results else "No verified evidence matched in database."
+                result["data"]["aiExplanation"] = result["data"].get("explanation", "")
+                result["data"]["sourceCitations"] = [r["source"] for r in rag_results] if rag_results else []
+                
+                return result
+                
+        # If not a social video, or download failed, try normal web scraping
+        scraped_text = scrape_url(content)
+        if not scraped_text.strip():
+            # Fallback logic: If content is blocked behind a bot-protection firewall,
+            # pass the raw URL alongside a direct request for Gemini to look it up via Search Grounding instead.
+            content = f"Please research this specific URL link directly using your live search tool: {content}"
+        else:
+            # Provide the scraped text to the pipeline
+            content = f"Article Content: {scraped_text[:5000]}"
     
     # 1. Claim Extraction
-    clean_claim = await extract_claim_from_text(payload.content)
+    clean_claim = await extract_claim_from_text(content)
     
     # 2. Retrieve local RAG context using clean claim
     rag_results = rag_service.retrieve_context(clean_claim)
@@ -183,7 +237,11 @@ async def verify_media_endpoint(
     file: UploadFile = File(...)
 ):
     # Validate accepted media types for safety boundaries
-    allowed_types = ["image/jpeg", "image/png", "image/webp", "video/mp4"]
+    allowed_types = [
+        "image/jpeg", "image/png", "image/webp", 
+        "video/mp4",
+        "audio/ogg", "audio/mp3", "audio/mpeg", "audio/wav", "audio/m4a"
+    ]
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}")
         

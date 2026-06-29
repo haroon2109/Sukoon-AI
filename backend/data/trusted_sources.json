@@ -16,12 +16,164 @@
     "text": "The Reserve Bank of India (RBI) has not issued any new Rs 1000 currency notes. Images of purportedly new Rs 1000 notes circulating online are digitally altered and fake. The RBI urges the public not to fall for such rumors."
   },
   {
-    "title": "Tamil Nadu Official Language Act",
-    "source": "Government of India",
-    "date": "1956-12-27",
+    "title": "IMD Denies Cyclone Warning for Mumbai",
+    "source": "IMD",
+    "date": "2024-06-20",
     "language": "en",
-    "url": "https://en.wikipedia.org/wiki/Tamil_Nadu_Official_Language_Act,_1956",
-    "text": "The Tamil Nadu Official Language Act, 1956 establishes Tamil as the official language of the state of Tamil Nadu. It mandates the use of Tamil for all official purposes of the State."
+    "url": "https://mausam.imd.gov.in/mumbai/",
+    "text": "The India Meteorological Department (IMD) has clarified that there is no cyclone warning for Mumbai in the next 48 hours. Viral messages claiming a super cyclone will hit the city are completely baseless."
+  },
+  {
+    "title": "Garlic Does Not Cure COVID-19",
+    "source": "WHO",
+    "date": "2020-03-15",
+    "language": "en",
+    "url": "https://www.who.int/emergencies/diseases/novel-coronavirus-2019/advice-for-public/myth-busters",
+    "text": "Garlic is a healthy food that may have some antimicrobial properties. However, there is no evidence from the current outbreak that eating garlic has protected people from the new coronavirus (COVID-19)."
+  },
+  {
+    "title": "No PM Free Laptop Scheme for 2024",
+    "source": "PIB Fact Check",
+    "date": "2024-01-15",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/free-laptops",
+    "text": "A viral WhatsApp link claiming the Ministry of Education is distributing free laptops to all students in 2024 is entirely fake. It is a phishing scam to steal personal data. There is no such central scheme."
+  },
+  {
+    "title": "TATA Group is NOT Giving Free Cars on WhatsApp",
+    "source": "Alt News",
+    "date": "2024-03-02",
+    "language": "en",
+    "url": "https://altnews.in/tata-free-car-scam",
+    "text": "TATA group has repeatedly denied running any promotion offering free cars to celebrate Ratan Tata's birthday via WhatsApp links. The accompanying images are from unrelated dealership events in 2019."
+  },
+  {
+    "title": "Holding Breath for 10 Seconds Doesn't Prove Lung Health",
+    "source": "WHO",
+    "date": "2020-04-10",
+    "language": "en",
+    "url": "https://who.int/mythbusters/breath",
+    "text": "Holding your breath does not diagnose lung health or any viral infection like COVID-19. Many people with severe lung conditions can hold their breath, while healthy people may struggle."
+  },
+  {
+    "title": "UNESCO Has Not Declared Indian Anthem The Best",
+    "source": "BOOM Live",
+    "date": "2022-08-14",
+    "language": "en",
+    "url": "https://boomlive.in/unesco-anthem-hoax",
+    "text": "UNESCO has explicitly clarified multiple times over the past decade that it has never held any such competition or made any declaration calling India's National Anthem the best in the world. It is a long-standing hoax."
+  },
+  {
+    "title": "Aadhaar Cards Must Be Updated Every 10 Years",
+    "source": "Government of India",
+    "date": "2023-05-12",
+    "language": "en",
+    "url": "https://uidai.gov.in/update",
+    "text": "UIDAI recommends updating Aadhaar details, especially biometrics and demographic data, every 10 years to ensure accuracy. This is a legitimate government administrative procedure."
+  },
+  {
+    "title": "UPI Transaction Limit for Hospitals Increased to 5 Lakh",
+    "source": "Government of India",
+    "date": "2024-01-01",
+    "language": "en",
+    "url": "https://rbi.org.in/upi-limits",
+    "text": "The RBI has raised the limit for UPI payments to hospitals and educational institutions from Rs 1 lakh to Rs 5 lakh to facilitate larger essential payments."
+  },
+  {
+    "title": "Three Blue Ticks on WhatsApp Do Not Mean Govt Surveillance",
+    "source": "PIB Fact Check",
+    "date": "2023-09-18",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/whatsapp-ticks",
+    "text": "WhatsApp uses end-to-end encryption. The government cannot read your messages. There is no 'three blue ticks' feature on WhatsApp; two blue ticks simply mean the message was read by the recipient."
+  },
+  {
+    "title": "Onions In Socks Do Not Draw Out Toxins",
+    "source": "WHO",
+    "date": "2021-11-20",
+    "language": "en",
+    "url": "https://who.int/health-myths/onions",
+    "text": "The claim that sleeping with onions in your socks cures diseases by drawing out toxins is an old myth with zero scientific backing. Onions do not cure viral infections through the feet."
+  },
+  {
+    "title": "Supreme Court Did Not Cancel Pending Traffic Challans",
+    "source": "Alt News",
+    "date": "2024-04-15",
+    "language": "en",
+    "url": "https://altnews.in/sc-challan-cancellation",
+    "text": "The Supreme Court has not issued a blanket cancellation of traffic challans. Certain states occasionally hold Lok Adalats to settle pending challans at a reduced penalty, but they are not 'cancelled' automatically."
+  },
+  {
+    "title": "Packaged Salt Brands Do Not Contain Crushed Glass",
+    "source": "Government of India",
+    "date": "2023-08-08",
+    "language": "en",
+    "url": "https://fssai.gov.in/salt-safety",
+    "text": "A viral video showing 'glass' dissolving in water is actually just large sea salt crystals taking time to dissolve. FSSAI has tested major packaged salt brands and found them completely safe for consumption without glass."
+  },
+  {
+    "title": "Video of Protests at India Gate is from 2012",
+    "source": "BOOM Live",
+    "date": "2024-02-10",
+    "language": "en",
+    "url": "https://boomlive.in/india-gate-protest",
+    "text": "A video showing massive protests at India Gate is being falsely shared as a live event against new labor laws. The footage is actually from 2012. Current live feeds show normal tourist activity."
+  },
+  {
+    "title": "Drinking Hot Lemon Water Does Not Cure COVID-19",
+    "source": "WHO",
+    "date": "2020-03-25",
+    "language": "en",
+    "url": "https://who.int/mythbusters/lemon-water",
+    "text": "There is absolutely no scientific evidence that drinking hot lemon water cures COVID-19 or any viral infection. It can soothe a sore throat but does not kill the virus in the body."
+  },
+  {
+    "title": "No 3-Minute Free Toll Rule by NHAI",
+    "source": "PIB Fact Check",
+    "date": "2023-07-22",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/nhai-toll",
+    "text": "There is no official '3-minute' blanket free rule at toll plazas. The NHAI guidelines state toll plazas should ensure service times of under 10 seconds per vehicle and there is a 'yellow line' rule, but waiting 3 minutes does not guarantee free passage."
+  },
+  {
+    "title": "RBI Governor Has Not Resigned",
+    "source": "Alt News",
+    "date": "2024-01-20",
+    "language": "en",
+    "url": "https://altnews.in/rbi-governor-resignation",
+    "text": "Viral claims that the RBI Governor resigned immediately following a secret government meeting are false. The official RBI website and major financial news outlets confirm he is still actively discharging his duties."
+  },
+  {
+    "title": "Chenab Bridge is the Highest Railway Bridge",
+    "source": "Government of India",
+    "date": "2024-02-28",
+    "language": "en",
+    "url": "https://indianrailways.gov.in/chenab",
+    "text": "At 359 meters above the river bed, the newly inaugurated Chenab Railway Bridge in Jammu & Kashmir is officially the highest railway bridge globally, surpassing the Eiffel Tower in height."
+  },
+  {
+    "title": "PM Surya Ghar Muft Bijli Yojana Launched",
+    "source": "PIB Fact Check",
+    "date": "2024-02-15",
+    "language": "en",
+    "url": "https://pmsuryaghar.gov.in",
+    "text": "The Indian Government recently launched the PM Surya Ghar scheme offering subsidies for installing rooftop solar panels to provide up to 300 units of free electricity. The scheme and official portal are legitimate."
+  },
+  {
+    "title": "Chennai Police Deny Viral Violence Video",
+    "source": "BOOM Live",
+    "date": "2024-05-12",
+    "language": "en",
+    "url": "https://boomlive.in/fake-news/chennai-violence-video",
+    "text": "A video circulating on WhatsApp claiming to show recent violence in Chennai is actually from an old political rally in 2018. Chennai police have confirmed the city is peaceful and have registered a case against those spreading the fake video."
+  },
+  {
+    "title": "RBI Has Not Issued New Rs 1000 Notes",
+    "source": "PIB Fact Check",
+    "date": "2023-11-05",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/rbi-notes",
+    "text": "The Reserve Bank of India (RBI) has not issued any new Rs 1000 currency notes. Images of purportedly new Rs 1000 notes circulating online are digitally altered and fake. The RBI urges the public not to fall for such rumors."
   },
   {
     "title": "IMD Denies Cyclone Warning for Mumbai",
@@ -38,5 +190,293 @@
     "language": "en",
     "url": "https://www.who.int/emergencies/diseases/novel-coronavirus-2019/advice-for-public/myth-busters",
     "text": "Garlic is a healthy food that may have some antimicrobial properties. However, there is no evidence from the current outbreak that eating garlic has protected people from the new coronavirus (COVID-19)."
+  },
+  {
+    "title": "No PM Free Laptop Scheme for 2024",
+    "source": "PIB Fact Check",
+    "date": "2024-01-15",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/free-laptops",
+    "text": "A viral WhatsApp link claiming the Ministry of Education is distributing free laptops to all students in 2024 is entirely fake. It is a phishing scam to steal personal data. There is no such central scheme."
+  },
+  {
+    "title": "TATA Group is NOT Giving Free Cars on WhatsApp",
+    "source": "Alt News",
+    "date": "2024-03-02",
+    "language": "en",
+    "url": "https://altnews.in/tata-free-car-scam",
+    "text": "TATA group has repeatedly denied running any promotion offering free cars to celebrate Ratan Tata's birthday via WhatsApp links. The accompanying images are from unrelated dealership events in 2019."
+  },
+  {
+    "title": "Holding Breath for 10 Seconds Doesn't Prove Lung Health",
+    "source": "WHO",
+    "date": "2020-04-10",
+    "language": "en",
+    "url": "https://who.int/mythbusters/breath",
+    "text": "Holding your breath does not diagnose lung health or any viral infection like COVID-19. Many people with severe lung conditions can hold their breath, while healthy people may struggle."
+  },
+  {
+    "title": "UNESCO Has Not Declared Indian Anthem The Best",
+    "source": "BOOM Live",
+    "date": "2022-08-14",
+    "language": "en",
+    "url": "https://boomlive.in/unesco-anthem-hoax",
+    "text": "UNESCO has explicitly clarified multiple times over the past decade that it has never held any such competition or made any declaration calling India's National Anthem the best in the world. It is a long-standing hoax."
+  },
+  {
+    "title": "Aadhaar Cards Must Be Updated Every 10 Years",
+    "source": "Government of India",
+    "date": "2023-05-12",
+    "language": "en",
+    "url": "https://uidai.gov.in/update",
+    "text": "UIDAI recommends updating Aadhaar details, especially biometrics and demographic data, every 10 years to ensure accuracy. This is a legitimate government administrative procedure."
+  },
+  {
+    "title": "UPI Transaction Limit for Hospitals Increased to 5 Lakh",
+    "source": "Government of India",
+    "date": "2024-01-01",
+    "language": "en",
+    "url": "https://rbi.org.in/upi-limits",
+    "text": "The RBI has raised the limit for UPI payments to hospitals and educational institutions from Rs 1 lakh to Rs 5 lakh to facilitate larger essential payments."
+  },
+  {
+    "title": "Three Blue Ticks on WhatsApp Do Not Mean Govt Surveillance",
+    "source": "PIB Fact Check",
+    "date": "2023-09-18",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/whatsapp-ticks",
+    "text": "WhatsApp uses end-to-end encryption. The government cannot read your messages. There is no 'three blue ticks' feature on WhatsApp; two blue ticks simply mean the message was read by the recipient."
+  },
+  {
+    "title": "Onions In Socks Do Not Draw Out Toxins",
+    "source": "WHO",
+    "date": "2021-11-20",
+    "language": "en",
+    "url": "https://who.int/health-myths/onions",
+    "text": "The claim that sleeping with onions in your socks cures diseases by drawing out toxins is an old myth with zero scientific backing. Onions do not cure viral infections through the feet."
+  },
+  {
+    "title": "Supreme Court Did Not Cancel Pending Traffic Challans",
+    "source": "Alt News",
+    "date": "2024-04-15",
+    "language": "en",
+    "url": "https://altnews.in/sc-challan-cancellation",
+    "text": "The Supreme Court has not issued a blanket cancellation of traffic challans. Certain states occasionally hold Lok Adalats to settle pending challans at a reduced penalty, but they are not 'cancelled' automatically."
+  },
+  {
+    "title": "Packaged Salt Brands Do Not Contain Crushed Glass",
+    "source": "Government of India",
+    "date": "2023-08-08",
+    "language": "en",
+    "url": "https://fssai.gov.in/salt-safety",
+    "text": "A viral video showing 'glass' dissolving in water is actually just large sea salt crystals taking time to dissolve. FSSAI has tested major packaged salt brands and found them completely safe for consumption without glass."
+  },
+  {
+    "title": "Video of Protests at India Gate is from 2012",
+    "source": "BOOM Live",
+    "date": "2024-02-10",
+    "language": "en",
+    "url": "https://boomlive.in/india-gate-protest",
+    "text": "A video showing massive protests at India Gate is being falsely shared as a live event against new labor laws. The footage is actually from 2012. Current live feeds show normal tourist activity."
+  },
+  {
+    "title": "Drinking Hot Lemon Water Does Not Cure COVID-19",
+    "source": "WHO",
+    "date": "2020-03-25",
+    "language": "en",
+    "url": "https://who.int/mythbusters/lemon-water",
+    "text": "There is absolutely no scientific evidence that drinking hot lemon water cures COVID-19 or any viral infection. It can soothe a sore throat but does not kill the virus in the body."
+  },
+  {
+    "title": "No 3-Minute Free Toll Rule by NHAI",
+    "source": "PIB Fact Check",
+    "date": "2023-07-22",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/nhai-toll",
+    "text": "There is no official '3-minute' blanket free rule at toll plazas. The NHAI guidelines state toll plazas should ensure service times of under 10 seconds per vehicle and there is a 'yellow line' rule, but waiting 3 minutes does not guarantee free passage."
+  },
+  {
+    "title": "RBI Governor Has Not Resigned",
+    "source": "Alt News",
+    "date": "2024-01-20",
+    "language": "en",
+    "url": "https://altnews.in/rbi-governor-resignation",
+    "text": "Viral claims that the RBI Governor resigned immediately following a secret government meeting are false. The official RBI website and major financial news outlets confirm he is still actively discharging his duties."
+  },
+  {
+    "title": "Chenab Bridge is the Highest Railway Bridge",
+    "source": "Government of India",
+    "date": "2024-02-28",
+    "language": "en",
+    "url": "https://indianrailways.gov.in/chenab",
+    "text": "At 359 meters above the river bed, the newly inaugurated Chenab Railway Bridge in Jammu & Kashmir is officially the highest railway bridge globally, surpassing the Eiffel Tower in height."
+  },
+  {
+    "title": "PM Surya Ghar Muft Bijli Yojana Launched",
+    "source": "PIB Fact Check",
+    "date": "2024-02-15",
+    "language": "en",
+    "url": "https://pmsuryaghar.gov.in",
+    "text": "The Indian Government recently launched the PM Surya Ghar scheme offering subsidies for installing rooftop solar panels to provide up to 300 units of free electricity. The scheme and official portal are legitimate."
+  },
+  {
+    "title": "Chennai Police Deny Viral Violence Video",
+    "source": "BOOM Live",
+    "date": "2024-05-12",
+    "language": "en",
+    "url": "https://boomlive.in/fake-news/chennai-violence-video",
+    "text": "A video circulating on WhatsApp claiming to show recent violence in Chennai is actually from an old political rally in 2018. Chennai police have confirmed the city is peaceful and have registered a case against those spreading the fake video."
+  },
+  {
+    "title": "RBI Has Not Issued New Rs 1000 Notes",
+    "source": "PIB Fact Check",
+    "date": "2023-11-05",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/rbi-notes",
+    "text": "The Reserve Bank of India (RBI) has not issued any new Rs 1000 currency notes. Images of purportedly new Rs 1000 notes circulating online are digitally altered and fake. The RBI urges the public not to fall for such rumors."
+  },
+  {
+    "title": "IMD Denies Cyclone Warning for Mumbai",
+    "source": "IMD",
+    "date": "2024-06-20",
+    "language": "en",
+    "url": "https://mausam.imd.gov.in/mumbai/",
+    "text": "The India Meteorological Department (IMD) has clarified that there is no cyclone warning for Mumbai in the next 48 hours. Viral messages claiming a super cyclone will hit the city are completely baseless."
+  },
+  {
+    "title": "Garlic Does Not Cure COVID-19",
+    "source": "WHO",
+    "date": "2020-03-15",
+    "language": "en",
+    "url": "https://www.who.int/emergencies/diseases/novel-coronavirus-2019/advice-for-public/myth-busters",
+    "text": "Garlic is a healthy food that may have some antimicrobial properties. However, there is no evidence from the current outbreak that eating garlic has protected people from the new coronavirus (COVID-19)."
+  },
+  {
+    "title": "No PM Free Laptop Scheme for 2024",
+    "source": "PIB Fact Check",
+    "date": "2024-01-15",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/free-laptops",
+    "text": "A viral WhatsApp link claiming the Ministry of Education is distributing free laptops to all students in 2024 is entirely fake. It is a phishing scam to steal personal data. There is no such central scheme."
+  },
+  {
+    "title": "TATA Group is NOT Giving Free Cars on WhatsApp",
+    "source": "Alt News",
+    "date": "2024-03-02",
+    "language": "en",
+    "url": "https://altnews.in/tata-free-car-scam",
+    "text": "TATA group has repeatedly denied running any promotion offering free cars to celebrate Ratan Tata's birthday via WhatsApp links. The accompanying images are from unrelated dealership events in 2019."
+  },
+  {
+    "title": "Holding Breath for 10 Seconds Doesn't Prove Lung Health",
+    "source": "WHO",
+    "date": "2020-04-10",
+    "language": "en",
+    "url": "https://who.int/mythbusters/breath",
+    "text": "Holding your breath does not diagnose lung health or any viral infection like COVID-19. Many people with severe lung conditions can hold their breath, while healthy people may struggle."
+  },
+  {
+    "title": "UNESCO Has Not Declared Indian Anthem The Best",
+    "source": "BOOM Live",
+    "date": "2022-08-14",
+    "language": "en",
+    "url": "https://boomlive.in/unesco-anthem-hoax",
+    "text": "UNESCO has explicitly clarified multiple times over the past decade that it has never held any such competition or made any declaration calling India's National Anthem the best in the world. It is a long-standing hoax."
+  },
+  {
+    "title": "Aadhaar Cards Must Be Updated Every 10 Years",
+    "source": "Government of India",
+    "date": "2023-05-12",
+    "language": "en",
+    "url": "https://uidai.gov.in/update",
+    "text": "UIDAI recommends updating Aadhaar details, especially biometrics and demographic data, every 10 years to ensure accuracy. This is a legitimate government administrative procedure."
+  },
+  {
+    "title": "UPI Transaction Limit for Hospitals Increased to 5 Lakh",
+    "source": "Government of India",
+    "date": "2024-01-01",
+    "language": "en",
+    "url": "https://rbi.org.in/upi-limits",
+    "text": "The RBI has raised the limit for UPI payments to hospitals and educational institutions from Rs 1 lakh to Rs 5 lakh to facilitate larger essential payments."
+  },
+  {
+    "title": "Three Blue Ticks on WhatsApp Do Not Mean Govt Surveillance",
+    "source": "PIB Fact Check",
+    "date": "2023-09-18",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/whatsapp-ticks",
+    "text": "WhatsApp uses end-to-end encryption. The government cannot read your messages. There is no 'three blue ticks' feature on WhatsApp; two blue ticks simply mean the message was read by the recipient."
+  },
+  {
+    "title": "Onions In Socks Do Not Draw Out Toxins",
+    "source": "WHO",
+    "date": "2021-11-20",
+    "language": "en",
+    "url": "https://who.int/health-myths/onions",
+    "text": "The claim that sleeping with onions in your socks cures diseases by drawing out toxins is an old myth with zero scientific backing. Onions do not cure viral infections through the feet."
+  },
+  {
+    "title": "Supreme Court Did Not Cancel Pending Traffic Challans",
+    "source": "Alt News",
+    "date": "2024-04-15",
+    "language": "en",
+    "url": "https://altnews.in/sc-challan-cancellation",
+    "text": "The Supreme Court has not issued a blanket cancellation of traffic challans. Certain states occasionally hold Lok Adalats to settle pending challans at a reduced penalty, but they are not 'cancelled' automatically."
+  },
+  {
+    "title": "Packaged Salt Brands Do Not Contain Crushed Glass",
+    "source": "Government of India",
+    "date": "2023-08-08",
+    "language": "en",
+    "url": "https://fssai.gov.in/salt-safety",
+    "text": "A viral video showing 'glass' dissolving in water is actually just large sea salt crystals taking time to dissolve. FSSAI has tested major packaged salt brands and found them completely safe for consumption without glass."
+  },
+  {
+    "title": "Video of Protests at India Gate is from 2012",
+    "source": "BOOM Live",
+    "date": "2024-02-10",
+    "language": "en",
+    "url": "https://boomlive.in/india-gate-protest",
+    "text": "A video showing massive protests at India Gate is being falsely shared as a live event against new labor laws. The footage is actually from 2012. Current live feeds show normal tourist activity."
+  },
+  {
+    "title": "Drinking Hot Lemon Water Does Not Cure COVID-19",
+    "source": "WHO",
+    "date": "2020-03-25",
+    "language": "en",
+    "url": "https://who.int/mythbusters/lemon-water",
+    "text": "There is absolutely no scientific evidence that drinking hot lemon water cures COVID-19 or any viral infection. It can soothe a sore throat but does not kill the virus in the body."
+  },
+  {
+    "title": "No 3-Minute Free Toll Rule by NHAI",
+    "source": "PIB Fact Check",
+    "date": "2023-07-22",
+    "language": "en",
+    "url": "https://pib.gov.in/factcheck/nhai-toll",
+    "text": "There is no official '3-minute' blanket free rule at toll plazas. The NHAI guidelines state toll plazas should ensure service times of under 10 seconds per vehicle and there is a 'yellow line' rule, but waiting 3 minutes does not guarantee free passage."
+  },
+  {
+    "title": "RBI Governor Has Not Resigned",
+    "source": "Alt News",
+    "date": "2024-01-20",
+    "language": "en",
+    "url": "https://altnews.in/rbi-governor-resignation",
+    "text": "Viral claims that the RBI Governor resigned immediately following a secret government meeting are false. The official RBI website and major financial news outlets confirm he is still actively discharging his duties."
+  },
+  {
+    "title": "Chenab Bridge is the Highest Railway Bridge",
+    "source": "Government of India",
+    "date": "2024-02-28",
+    "language": "en",
+    "url": "https://indianrailways.gov.in/chenab",
+    "text": "At 359 meters above the river bed, the newly inaugurated Chenab Railway Bridge in Jammu & Kashmir is officially the highest railway bridge globally, surpassing the Eiffel Tower in height."
+  },
+  {
+    "title": "PM Surya Ghar Muft Bijli Yojana Launched",
+    "source": "PIB Fact Check",
+    "date": "2024-02-15",
+    "language": "en",
+    "url": "https://pmsuryaghar.gov.in",
+    "text": "The Indian Government recently launched the PM Surya Ghar scheme offering subsidies for installing rooftop solar panels to provide up to 300 units of free electricity. The scheme and official portal are legitimate."
   }
 ]

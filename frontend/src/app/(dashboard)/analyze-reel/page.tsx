@@ -57,37 +57,69 @@ export default function AnalyzeContent() {
     setResultData(null)
 
     try {
-      // Simulated processing pipeline
       setAnalysisStep(0);
       
-      setTimeout(() => setAnalysisStep(1), 1500);
-      setTimeout(() => setAnalysisStep(2), 3000);
-      setTimeout(() => setAnalysisStep(3), 4500);
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
       
-      setTimeout(() => {
-        setResultData({
-          verdict: "false",
-          confidenceScore: 99,
-          claimSummary: inputText || "A viral video shows Sachin Tendulkar promoting a gaming app that guarantees quick money.",
-          actualFacts: "This is an AI-generated deepfake. Sachin Tendulkar confirmed the video is fake, and NDTV reported his voice was cloned for a financial scam.",
-          sources: [
-             { name: "NDTV", url: "https://ndtv.com", credibilityScore: 95 },
-             { name: "PTI", url: "https://pti.in", credibilityScore: 90 },
-             { name: "THE HINDU", url: "https://thehindu.com", credibilityScore: 92 }
-          ],
-          aiDeepfake: true
-        });
-        setAnalysisStep(4);
-        
-        setTimeout(() => {
-          setIsAnalyzing(false);
-          setShowNewResult(true);
-          setInputText("");
-        }, 1000);
-      }, 6000);
+      // We simulate stages visually while the request is in flight
+      const stageInterval = setInterval(() => {
+          setAnalysisStep(prev => prev < 3 ? prev + 1 : 3)
+      }, 1500)
+
+      let response;
+      if (activeTab === "media") {
+          // Note: In a full implementation, you'd want to attach a file input ref here.
+          // For now, we fallback to text if they just clicked without a file.
+          response = await fetch(`${baseUrl}/api/verify/text`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: inputText })
+          })
+      } else {
+          response = await fetch(`${baseUrl}/api/verify/text`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: inputText })
+          })
+      }
+
+      clearInterval(stageInterval)
+      setAnalysisStep(4)
+      
+      if (!response.ok) {
+          throw new Error("Verification failed")
+      }
+      
+      const data = await response.json()
+      
+      if (data.status === "success") {
+          const rawVerdict = data.data.verdict || "⚪ Unable to Verify";
+          let simpleVerdict = "unable to verify";
+          if (rawVerdict.includes("Verified")) simpleVerdict = "true";
+          if (rawVerdict.includes("False")) simpleVerdict = "false";
+          if (rawVerdict.includes("Misleading") || rawVerdict.includes("Context")) simpleVerdict = "misleading";
+          
+          setTimeout(() => {
+              setResultData({
+                verdict: simpleVerdict,
+                confidenceScore: data.data.confidence_score,
+                claimSummary: data.data.claimSummary || inputText,
+                actualFacts: data.data.aiExplanation || data.data.explanation || "No explanation.",
+                sources: (data.data.sourceCitations || []).map((s: string) => ({ name: s, url: "#" })),
+                aiDeepfake: false
+              });
+              setIsAnalyzing(false);
+              setShowNewResult(true);
+              setInputText("");
+          }, 1000);
+      } else {
+          throw new Error(data.message)
+      }
+
     } catch (error) {
       console.error(error);
       setIsAnalyzing(false);
+      alert("Failed to analyze content. Please try again.")
     }
   }
 
