@@ -74,6 +74,19 @@ async def submit_media_for_verification(
 from app.repositories.repos import verification_repo, claim_repo
 from datetime import datetime
 
+# Helper function to map verdicts to strict lowercase tokens matching the React TruthCard component
+def map_verdict_to_token(raw_verdict: str) -> str:
+    v = str(raw_verdict).lower()
+    if any(word in v for word in ["verified", "true", "safe", "🟢"]):
+        return "verified"
+    elif any(word in v for word in ["misleading", "🟠"]):
+        return "misleading"
+    elif any(word in v for word in ["unverified", "unable", "context", "🟡", "⚪"]):
+        return "unverified"
+    elif any(word in v for word in ["false", "🔴"]):
+        return "false"
+    return "unverified"
+
 @router.websocket("/ws/{task_id}")
 async def websocket_verification_stream(websocket: WebSocket, task_id: str, token: str = None, db: Session = Depends(get_db)):
     """
@@ -132,16 +145,8 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
         from app.ai_modules.agents.evaluation_agent import evaluation_agent
         result = await asyncio.to_thread(evaluation_agent.evaluate, claim_text)
         
-        # Correctly map all verdict signals without defaulting 'unverified' or others to 'false'
-        raw_verdict = str(result.get("verdict", "")).lower()
-        if any(word in raw_verdict for word in ["verified", "true", "safe"]):
-            frontend_verdict = "verified"
-        elif "misleading" in raw_verdict:
-            frontend_verdict = "misleading"
-        elif any(word in raw_verdict for word in ["unverified", "unable", "context"]):
-            frontend_verdict = "unverified"
-        else:
-            frontend_verdict = "false"
+        # Correctly map all verdict signals into lowercase string tokens
+        frontend_verdict = map_verdict_to_token(result.get("verdict", ""))
             
         if verification:
             verification_repo.update(db, db_obj=verification, obj_in={
@@ -155,7 +160,7 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
             "message": "Verification complete. Generating Truth Card.",
             "data": {
                 "verdict": frontend_verdict,
-                "confidenceScore": int(result.get("confidence_score", 0.9) * 100),
+                "confidenceScore": int(result.get("confidence_score", 0.9) * 100) if isinstance(result.get("confidence_score"), (int, float)) and result.get("confidence_score", 0.9) <= 1.0 else int(result.get("confidence_score", 90)),
                 "claimSummary": claim_text[:100] + "...",
                 "actualFacts": result.get("explanation", ""),
                 "sourceCitations": result.get("sourceCitations", []),
