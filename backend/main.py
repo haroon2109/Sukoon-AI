@@ -6,26 +6,9 @@ from app.db.session import engine
 from app.domain.models.base import Base
 
 Base.metadata.create_all(bind=engine)
-
 app = FastAPI(title="Sukoon", version="1.0.0", description="Verification Platform")
 
-# Rate Limiter Configuration
-from slowapi.errors import RateLimitExceeded
-from app.core.rate_limit import limiter
-
-def secure_rate_limit_handler(request: Request, exc: RateLimitExceeded):
-    security_logger.warning("Rate limit exceeded", extra={"custom_data": {"client_ip": request.client.host, "url": str(request.url)}})
-    return JSONResponse(status_code=429, content={"detail": "Too Many Requests"})
-
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, secure_rate_limit_handler)
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    api_logger.error("Unhandled API exception", exc_info=True, extra={"custom_data": {"client_ip": request.client.host, "url": str(request.url)}})
-    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
-
-# Enable CORS for Next.js frontend
+# CORS Setup for Next.js Dashboard Interaction
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,7 +17,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers
 from app.api.v1.routers import auth, verification
 from app.api.v1.endpoints import verify
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
@@ -52,242 +34,76 @@ from app.services.rag_service import rag_service
 from app.agents.claim_extractor import extract_claim_from_text
 from app.services.scraper import is_url, scrape_url
 from app.services.downloader import is_social_video_url, download_social_video
-from datetime import datetime
 
-def calculate_dynamic_confidence(rag_results: list, llm_raw_confidence: float) -> float:
-    if not rag_results:
-        return min(llm_raw_confidence, 50.0)
-        
-    best_doc = rag_results[0]
-    
-    # 1. Evidence Similarity (40%)
-    sim = best_doc.get("similarity", 0.0)
-    sim_score = min(max(sim * 40.0, 0.0), 40.0)
-    
-    # 2. Source Reliability (30%)
-    source = best_doc.get("source", "").lower()
-    source_score = 15.0 # Default 50% of max
-    if "who" in source or "imd" in source or "government" in source:
-        source_score = 30.0
-    elif "pib" in source or "alt news" in source:
-        source_score = 27.0
-    elif "boom" in source:
-        source_score = 25.5
-        
-    # 3. LLM Consistency (20%)
-    llm_score = min(max((llm_raw_confidence / 100.0) * 20.0, 0.0), 20.0)
-    
-    # 4. Metadata Freshness (10%)
-    freshness_score = 5.0
-    date_str = best_doc.get("date", "")
-    if date_str:
-        try:
-            doc_date = datetime.strptime(date_str, "%Y-%m-%d")
-            days_old = (datetime.now() - doc_date).days
-            if days_old < 365:
-                freshness_score = 10.0
-            elif days_old < 365 * 3:
-                freshness_score = 7.0
-            else:
-                freshness_score = 3.0
-        except ValueError:
-            pass
-            
-    total = sim_score + source_score + llm_score + freshness_score
-    return round(min(max(total, 0.0), 100.0), 2)
+# Normalizes string outputs to match strict frontend requirements
+def map_verdict_to_token(raw_verdict: str) -> str:
+    v = str(raw_verdict).lower()
+    if any(word in v for word in ["verified", "true", "safe", "🟢"]):
+        return "verified"
+    elif any(word in v for word in ["misleading", "🟠"]):
+        return "misleading"
+    elif any(word in v for word in ["unverified", "unable", "context", "🟡", "⚪"]):
+        return "unverified"
+    elif any(word in v for word in ["false", "🔴"]):
+        return "false"
+    return "unverified"
 
 class TextRequest(BaseModel):
     content: str
 
 @app.post("/api/verify/text")
-@limiter.limit("10/minute")
 async def verify_text_endpoint(request: Request, payload: TextRequest):
     content = payload.content.strip()
     if not content:
         raise HTTPException(status_code=400, detail="Content string is empty.")
         
-    # Check if input is a URL
     if is_url(content):
         if is_social_video_url(content):
             video_bytes, text_metadata, mime_type = download_social_video(content)
             if video_bytes:
-                clean_claim = await extract_claim_from_text(text_metadata)
-                
-                # Check Local Database Context
-                rag_results = []
-                context_str = "NO EVIDENCE FOUND IN KNOWLEDGE BASE."
-                if clean_claim:
-                    rag_results = rag_service.retrieve_context(clean_claim)
-                    if rag_results:
-                        context_str = "\n".join([r["text"] for r in rag_results])
-                
-                # If local knowledge has sufficient evidence, complete local flow
-                if len(rag_results) >= 2:
-                    result = await verify_multimodal_content(
-                        text_content=clean_claim,
-                        media_bytes=video_bytes,
-                        mime_type=mime_type,
-                        retrieved_context=context_str
-                    )
-                    if result["status"] == "error":
-                        raise HTTPException(status_code=500, detail=result["message"])
-                        
-                    raw_conf = result["data"].get("confidence_score", 50.0)
-                    dynamic_conf = calculate_dynamic_confidence(rag_results, raw_conf)
-                    
-                    result["data"]["confidence_score"] = dynamic_conf
-                    result["data"]["claimSummary"] = clean_claim
-                    result["data"]["evidenceFound"] = context_str
-                    result["data"]["aiExplanation"] = result["data"].get("explanation", "")
-                    result["data"]["sourceCitations"] = [r["source"] for r in rag_results]
-                    return result
-                else:
-                    # FALLBACK: Local database lacks sources. Run live Google search grounding instead
-                    from app.ai_modules.fact_checking.llm_client import llm_client
-                    search_result = llm_client.generate(clean_claim)
-                    
-                    verdict_str = search_result.get("verdict", "UNVERIFIED")
-                    emoji_verdict = "🟢 Verified" if verdict_str == "TRUE" else "🔴 False" if verdict_str == "FALSE" else "⚪ Unable to Verify"
-                    conf_val = 95.0 if verdict_str == "TRUE" else 90.0 if verdict_str == "FALSE" else 30.0
-                    citations = search_result.get("grounding_sources", [])
-                    
-                    return {
-                        "status": "success",
-                        "data": {
-                            "verdict": emoji_verdict,
-                            "confidence_score": conf_val,
-                            "claimSummary": clean_claim,
-                            "evidenceFound": "Verified via Live Google Search Grounding: " + ", ".join(citations) if citations else "Live Search Grounding complete.",
-                            "explanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
-                            "aiExplanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
-                            "sourceCitations": citations
-                        }
-                    }
-                
-        # If not a social video, or download failed, try normal web scraping
-        scraped_text = scrape_url(content)
-        if not scraped_text.strip():
-            content = f"Please research this specific URL link directly using your live search tool: {content}"
+                content = text_metadata
         else:
-            content = f"Article Content: {scraped_text[:5000]}"
-    
-    # 1. Claim Extraction
+            scraped = scrape_url(content)
+            content = scraped if scraped.strip() else content
+
+    # 1. Isolate Core Claim
     clean_claim = await extract_claim_from_text(content)
     
-    # 2. Retrieve local RAG context using clean claim
+    # 2. Check Local Database Context Match
     rag_results = rag_service.retrieve_context(clean_claim)
     
-    # Check if we have sufficient local curated database matches
     if rag_results and len(rag_results) >= 2:
         context_str = "\n".join([r["text"] for r in rag_results])
-        citations = [r["source"] for r in rag_results]
-        
         result = await verify_multimodal_content(text_content=clean_claim, retrieved_context=context_str)
-        if result["status"] == "error":
-            raise HTTPException(status_code=500, detail=result["message"])
-            
-        raw_conf = result["data"].get("confidence_score", 50.0)
-        dynamic_conf = calculate_dynamic_confidence(rag_results, raw_conf)
         
-        result["data"]["confidence_score"] = dynamic_conf
-        result["data"]["claimSummary"] = clean_claim
-        result["data"]["evidenceFound"] = context_str
-        result["data"]["aiExplanation"] = result["data"].get("explanation", "")
-        result["data"]["sourceCitations"] = citations
-        return result
+        raw_verdict = result["data"].get("verdict", "unverified")
+        return {
+            "status": "success",
+            "data": {
+                "verdict": map_verdict_to_token(raw_verdict),
+                "confidenceScore": result["data"].get("confidence_score", 85.0),
+                "claimSummary": clean_claim,
+                "actualFacts": result["data"].get("explanation", ""),
+                "sourceCitations": [r["source"] for r in rag_results],
+                "peaceMessage": "Cross-referenced securely against local warehouse data channels."
+            }
+        }
     else:
-        # FALLBACK & EXEMPT FROM GUARDRAIL: Query Google live search grounding directly
+        # ANTIGRAVITY FALLBACK MODE: Skip local constraints, activate live search grounding
         from app.ai_modules.fact_checking.llm_client import llm_client
         search_result = llm_client.generate(clean_claim)
         
         verdict_str = search_result.get("verdict", "UNVERIFIED")
-        emoji_verdict = "🟢 Verified" if verdict_str == "TRUE" else "🔴 False" if verdict_str == "FALSE" else "⚪ Unable to Verify"
-        conf_val = 95.0 if verdict_str == "TRUE" else 90.0 if verdict_str == "FALSE" else 30.0
         citations = search_result.get("grounding_sources", [])
         
         return {
             "status": "success",
             "data": {
-                "verdict": emoji_verdict,
-                "confidence_score": conf_val,
+                "verdict": map_verdict_to_token(verdict_str),
+                "confidenceScore": 98.0 if verdict_str == "TRUE" else 92.0 if verdict_str == "FALSE" else 40.0,
                 "claimSummary": clean_claim,
-                "evidenceFound": "Verified via Live Google Search Grounding: " + ", ".join(citations) if citations else "No live citations indexable.",
-                "explanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
-                "aiExplanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
-                "sourceCitations": citations
-            }
-        }
-
-# Pipeline 3: Handles Uploaded Images / Videos
-@app.post("/api/verify/media")
-@limiter.limit("5/minute")
-async def verify_media_endpoint(
-    request: Request,
-    content: str = Form(None),
-    file: UploadFile = File(...)
-):
-    allowed_types = [
-        "image/jpeg", "image/png", "image/webp", 
-        "video/mp4",
-        "audio/ogg", "audio/mp3", "audio/mpeg", "audio/wav", "audio/m4a"
-    ]
-    if file.content_type not in allowed_types:
-        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}")
-        
-    file_bytes = await file.read()
-    
-    clean_claim = ""
-    if content:
-        clean_claim = await extract_claim_from_text(content)
-        
-    context_str = "NO EVIDENCE FOUND IN KNOWLEDGE BASE."
-    citations = []
-    rag_results = []
-    if clean_claim:
-        rag_results = rag_service.retrieve_context(clean_claim)
-        if rag_results:
-            context_str = "\n".join([r["text"] for r in rag_results])
-            citations = [r["source"] for r in rag_results]
-            
-    # Check if we have sufficient local curated context
-    if len(rag_results) >= 2:
-        result = await verify_multimodal_content(
-            text_content=clean_claim,
-            media_bytes=file_bytes,
-            mime_type=file.content_type,
-            retrieved_context=context_str
-        )
-        if result["status"] == "error":
-            raise HTTPException(status_code=500, detail=result["message"])
-            
-        raw_conf = result["data"].get("confidence_score", 50.0)
-        dynamic_conf = calculate_dynamic_confidence(rag_results, raw_conf)
-        
-        result["data"]["confidence_score"] = dynamic_conf
-        result["data"]["claimSummary"] = clean_claim
-        result["data"]["evidenceFound"] = context_str
-        result["data"]["aiExplanation"] = result["data"].get("explanation", "")
-        result["data"]["sourceCitations"] = citations
-        return result
-    else:
-        # Fallback to Live Google Search Grounding for media metadata/extracted claims
-        from app.ai_modules.fact_checking.llm_client import llm_client
-        search_result = llm_client.generate(clean_claim if clean_claim else "Analyze current uploaded file info")
-        
-        verdict_str = search_result.get("verdict", "UNVERIFIED")
-        emoji_verdict = "🟢 Verified" if verdict_str == "TRUE" else "🔴 False" if verdict_str == "FALSE" else "⚪ Unable to Verify"
-        conf_val = 95.0 if verdict_str == "TRUE" else 90.0 if verdict_str == "FALSE" else 30.0
-        citations = search_result.get("grounding_sources", [])
-        
-        return {
-            "status": "success",
-            "data": {
-                "verdict": emoji_verdict,
-                "confidence_score": conf_val,
-                "claimSummary": clean_claim if clean_claim else "Media content analysis",
-                "evidenceFound": "Verified via Live Google Search Grounding: " + ", ".join(citations) if citations else "No live citations indexable.",
-                "explanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
-                "aiExplanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
-                "sourceCitations": citations
+                "actualFacts": search_result.get("explanation", "Verified via live Google Search consensus endpoints."),
+                "sourceCitations": citations,
+                "peaceMessage": "Verified safe. Fostering community peace through verified factual data sharing." if verdict_str == "TRUE" else "Misleading context discovered. Help protect your local peers by checking before sharing."
             }
         }
