@@ -1,12 +1,20 @@
 import os
+import json
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
 # Initialize the official Gen AI client using your existing AI Studio Key
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+# Define a structured schema for multimodal outputs to keep JSON format fully intact
+class MultimodalVerificationResponse(BaseModel):
+    verdict: str = Field(description="Must be exactly: '🟢 Verified', '🟡 Needs Context', '🟠 Misleading', '🔴 False', or '⚪ Unable to Verify'")
+    confidence_score: float = Field(description="Confidence score as a float between 0.0 and 100.0")
+    explanation: str = Field(description="Objective, neutral explanation for the verdict")
 
 # Strict system instructions to enforce neutral, unbiased community peace analysis
 SUKOON_PERSONA = (
@@ -26,17 +34,8 @@ SUKOON_PERSONA = (
     "If evidence is insufficient, return ⚪ Unable to Verify.\n\n"
     "Never invent facts.\n"
     "Never assume political intent.\n"
-    "Remain neutral.\n\n"
-    "CRITICAL: You MUST respond ONLY with a valid JSON object. Do not include any other text. "
-    "Use the following schema:\n"
-    "{\n"
-    "  \"verdict\": \"🟢 Verified\" | \"🟡 Needs Context\" | \"🟠 Misleading\" | \"🔴 False\" | \"⚪ Unable to Verify\",\n"
-    "  \"confidence_score\": <float>,\n"
-    "  \"explanation\": \"<string>\"\n"
-    "}"
+    "Remain neutral."
 )
-
-import json
 
 async def verify_multimodal_content(text_content: str = None, media_bytes: bytes = None, mime_type: str = None, retrieved_context: str = "") -> dict:
     try:
@@ -61,10 +60,12 @@ async def verify_multimodal_content(text_content: str = None, media_bytes: bytes
         else:
             contents.append("Analyze this uploaded media for truth and potential hatred incitement.")
 
-        # 2. Configure for pure reasoning (No Google Search Tool)
+        # 2. Configure for pure reasoning (No Google Search Tool) with a structured schema
         config = types.GenerateContentConfig(
             system_instruction=SUKOON_PERSONA,
-            temperature=0.0
+            temperature=0.0,
+            response_mime_type="application/json",
+            response_schema=MultimodalVerificationResponse
         )
         
         # gemini-2.5-flash handles mixed media inputs seamlessly
@@ -73,9 +74,6 @@ async def verify_multimodal_content(text_content: str = None, media_bytes: bytes
             contents=contents,
             config=config
         )
-        
-        # 3. We are using local RAG now, so the sources are not extracted from response candidates.
-        # Sources are passed from the RAG service to the frontend in main.py, so we just return the parsed JSON.
                         
         raw_text = response.text.strip()
         if raw_text.startswith("```json"):
@@ -86,9 +84,6 @@ async def verify_multimodal_content(text_content: str = None, media_bytes: bytes
             raw_text = raw_text[:-3]
             
         structured_data = json.loads(raw_text.strip())
-        
-        # We don't map the strings anymore, we just pass the raw emoji verdict to the frontend
-        # which will be parsed dynamically.
             
         return {
             "status": "success",

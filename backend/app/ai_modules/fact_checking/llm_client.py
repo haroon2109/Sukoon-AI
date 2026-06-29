@@ -1,28 +1,37 @@
 import json
 from google import genai
 from google.genai import types
+from pydantic import BaseModel
 from app.core.config import settings
 
 # Setup API Key
 gemini_key = settings.GEMINI_API_KEY or "DUMMY_KEY"
 client = genai.Client(api_key=gemini_key)
 
+# Strict Schema definition to force structured output
+class FactCheckResponse(BaseModel):
+    verdict: str  # Must strictly be "TRUE", "FALSE", or "UNVERIFIED"
+    explanation: str
+
 class GeminiClient:
     def __init__(self):
-        # We use gemini-2.5-flash which natively supports Google Search tools.
         self.model_name = 'gemini-2.5-flash'
         
-        # Configure search grounding natively
+        # Configure search grounding natively with strict schema constraints
         self.config = types.GenerateContentConfig(
             tools=[types.Tool(google_search=types.GoogleSearch())],
             temperature=0.0,
+            response_mime_type="application/json",
+            response_schema=FactCheckResponse,
             system_instruction=(
                 "You are the objective truth engine of Sukoon AI. Your goal is community peace through accuracy. "
-                "You MUST look up the claim using Google Search. "
+                "You MUST look up the claim using Google Search to cross-reference facts.\n\n"
                 "CRITICAL RULES:\n"
-                "1. If a claim is an established historical, legal, or geographic fact, you MUST mark it TRUE.\n"
+                "1. If Google Search grounding results directly support the claim or demonstrate it is an established factual truth (historical, legal, geographic, scientific, or general public knowledge), you MUST mark the verdict as 'TRUE'.\n"
                 "2. Do NOT assume a statement is false simply because it is missing from a fake news database.\n"
-                "3. Only declare a statement FALSE if authoritative grounding sources explicitly label it a hoax or a rumor."
+                "3. Only declare a statement 'FALSE' if authoritative grounding sources explicitly contradict it, or label it a hoax or rumor.\n"
+                "4. If there is absolutely zero evidence or conflicting reports make it impossible to verify, mark it as 'UNVERIFIED'.\n\n"
+                "Provide a highly objective, neutral summary of your search findings in the explanation field."
             )
         )
 
@@ -73,6 +82,6 @@ class GeminiClient:
                 
             return result_json
         except Exception as e:
-            return {"error": str(e), "raw_response": getattr(response, 'text', '') if 'response' in locals() else ''}
+            return {"verdict": "UNVERIFIED", "explanation": f"Failsafe triggered. Processing error: {str(e)}"}
 
 llm_client = GeminiClient()

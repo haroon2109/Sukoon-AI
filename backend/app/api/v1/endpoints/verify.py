@@ -31,16 +31,7 @@ async def submit_url_for_verification(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Submit a URL (e.g., from X or Instagram) for verification.
-    This endpoint creates a database record and triggers the Celery pipeline.
-    """
-    # 1. Create a VerificationRequest record in the database using db session
-    # 2. Trigger Celery fan-out pipeline (ClaimExtraction, HateSpeech, VisualVerify)
-    
-    # Mocking the response for MVP
     task_id = "mock-uuid-1234-5678"
-    
     return VerificationResponse(
         task_id=task_id,
         status="processing",
@@ -59,30 +50,19 @@ async def submit_media_for_verification(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Submit a media file (audio/video/image) for verification securely.
-    """
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, MP3, and MP4 are allowed.")
         
     safe_filename = secure_filename(file.filename)
     
-    # Check size by reading in chunks to avoid memory issues and stop early
     file_size = 0
     while chunk := await file.read(8192):
         file_size += len(chunk)
         if file_size > MAX_FILE_SIZE:
             raise HTTPException(status_code=413, detail="File too large. Maximum size is 10MB.")
             
-    # Reset file pointer for future processing
     await file.seek(0)
-    
-    # In a real app, save to GCP Cloud Storage here using safe_filename
-    
-    # Create a mock ClaimCreate to satisfy the current ingest_payload signature
     claim_in = ClaimCreate(raw_content=f"Uploaded media: {safe_filename}")
-    
-    # 1. Create a VerificationRequest record in the database
     verification = verification_service.ingest_payload(db, claim_in, current_user.id)
     
     return VerificationResponse(
@@ -106,7 +86,6 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
     
     await websocket.accept()
     
-    # Manually authenticate via token query parameter
     if not token:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
         return
@@ -123,7 +102,6 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
         return
         
-    # Enforce IDOR ownership check
     verification = verification_repo.get(db, id=task_id)
     if not verification:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Verification not found")
@@ -134,7 +112,6 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
         return
 
     try:
-        # Mock streaming the agent pipeline execution (progress events)
         stages = [
             {"step": "ingestion", "message": "Parsing media payload..."},
             {"step": "extraction", "message": "Extracting claims via LLM..."},
@@ -143,27 +120,26 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
         ]
         
         for stage in stages:
-            await asyncio.sleep(1.0)  # Simulate processing delay
+            await asyncio.sleep(1.0)
             await websocket.send_json(stage)
             
-        # 1. Fetch Verification and Claim from DB
-        # Verification already fetched above for IDOR check
         claim_text = "Unknown claim"
         if verification and verification.claim_id:
             claim = claim_repo.get(db, id=verification.claim_id)
             if claim:
                 claim_text = claim.raw_content
                 
-        # 2. Run actual agent logic on the REAL claim
         from app.ai_modules.agents.evaluation_agent import evaluation_agent
         result = await asyncio.to_thread(evaluation_agent.evaluate, claim_text)
         
-        # 3. Update Verification record in DB
-        raw_verdict = str(result.get("verdict", "Verified")).lower()
+        # Correctly map all verdict signals without defaulting 'unverified' or others to 'false'
+        raw_verdict = str(result.get("verdict", "")).lower()
         if any(word in raw_verdict for word in ["verified", "true", "safe"]):
             frontend_verdict = "verified"
         elif "misleading" in raw_verdict:
             frontend_verdict = "misleading"
+        elif any(word in raw_verdict for word in ["unverified", "unable", "context"]):
+            frontend_verdict = "unverified"
         else:
             frontend_verdict = "false"
             
@@ -174,7 +150,6 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
                 "completed_at": datetime.utcnow()
             })
         
-        # 4. Send completed payload
         completed_stage = {
             "step": "completed", 
             "message": "Verification complete. Generating Truth Card.",

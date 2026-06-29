@@ -23,36 +23,52 @@ class RAGService:
         else:
             logger.warning(f"Vector store not found at {VECTOR_STORE_FILE}")
 
-    def get_embedding(self, text: str) -> np.ndarray:
+    def get_embedding(self, text: str) -> set:
         """
-        Mock embedding generator for MVP since AI Studio key lacks text-embedding-004.
-        Generates a deterministic 128-dimensional vector using text hashing.
+        Mock embedding generator using simple bag-of-words for lexical overlap
+        instead of random hashing to prevent noise.
         """
-        np.random.seed(abs(hash(text)) % (2**32))
-        vec = np.random.rand(128)
-        vec = vec / np.linalg.norm(vec)
-        return vec
+        import re
+        words = re.findall(r'\w+', text.lower())
+        # Filter out common stop words to improve basic matching
+        stop_words = {'the', 'is', 'in', 'at', 'of', 'on', 'and', 'a', 'to', 'for', 'it', 'that', 'this', 'with'}
+        return set([w for w in words if w not in stop_words])
 
     def retrieve_context(self, claim: str, top_k: int = 3) -> list:
         """
-        Retrieves relevant context by calculating cosine similarity between
-        the claim embedding and stored document embeddings.
+        Retrieves relevant context by calculating Jaccard similarity between
+        the claim words and stored document words.
         """
         if not self.vector_store:
             return []
 
         try:
-            claim_embedding = self.get_embedding(claim)
+            claim_words = self.get_embedding(claim)
         except Exception as e:
             logger.error(f"Failed to embed claim: {e}")
+            return []
+            
+        if not claim_words:
             return []
 
         scored_results = []
         for doc in self.vector_store:
-            doc_emb = np.array(doc["embedding"])
-            # Cosine similarity
-            similarity = np.dot(claim_embedding, doc_emb) / (np.linalg.norm(claim_embedding) * np.linalg.norm(doc_emb))
-            scored_results.append((similarity, doc))
+            # We compute the embedding on the fly for the doc if not stored as words, 
+            # but actually vector_store has random float arrays right now from generate_data.py
+            # So let's just use the doc's "title" and "text" to compute overlap dynamically
+            doc_text = doc.get("title", "") + " " + doc.get("text", "")
+            doc_words = self.get_embedding(doc_text)
+            
+            if not doc_words:
+                continue
+                
+            intersection = len(claim_words.intersection(doc_words))
+            union = len(claim_words.union(doc_words))
+            similarity = intersection / union if union > 0 else 0
+            
+            # Enforce a minimum threshold so we don't return completely unrelated junk!
+            if similarity > 0.05:
+                scored_results.append((similarity, doc))
 
         # Sort by similarity descending
         scored_results.sort(key=lambda x: x[0], reverse=True)

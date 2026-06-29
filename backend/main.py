@@ -1,22 +1,13 @@
 from fastapi import FastAPI, Request, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-from app.api.v1.routers import auth, verification
-from app.api.v1.endpoints import verify
 from fastapi.responses import JSONResponse
 from app.core.logger import api_logger, security_logger
-
 from app.db.session import engine
 from app.domain.models.base import Base
-from app.domain.models import claims, related_models, users, verifications
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sukoon", version="1.0.0", description="Verification Platform")
-
-# Enforce HTTPS
-# Uncomment in true production if Cloud Run isn't terminating SSL fully, or if you want strict app-level enforcement
-# app.add_middleware(HTTPSRedirectMiddleware)
 
 # Rate Limiter Configuration
 from slowapi.errors import RateLimitExceeded
@@ -43,44 +34,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include the newly generated Phase 2 routers
+# Include Routers
+from app.api.v1.routers import auth, verification
+from app.api.v1.endpoints import verify
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(verification.router, prefix="/api/v1", tags=["Verification"])
-
-# Mount the verify endpoints for WebSockets and specific tasks
 app.include_router(verify.router, prefix="/api/v1/verify", tags=["Verify"])
 
 @app.get("/")
 def root():
     return {"status": "Sukoon Core Running"}
 
-# --- Antigravity Agent Verification ---
 import asyncio
 from pydantic import BaseModel
-from fastapi import HTTPException
 from app.services.ai_engine import verify_multimodal_content
 from app.services.rag_service import rag_service
 from app.agents.claim_extractor import extract_claim_from_text
 from app.services.scraper import is_url, scrape_url
 from app.services.downloader import is_social_video_url, download_social_video
-
-async def run_sukoon_agent(user_query: str):
-    # Configure the agent to run securely within your Google Cloud project bounds
-    import os
-    config = LocalAgentConfig(
-        api_key=os.getenv("GEMINI_API_KEY"),
-        system_instructions=(
-            "You are an autonomous Sukoon AI agent. Your mission is to investigate the provided text "
-            "or link for community hatred or fake news. You have access to Google Search and URL web context "
-            "to independently verify facts before providing a final peace verdict."
-        )
-    )
-    
-    # Initialize the runtime (automatically hooks up web search and isolated tool usage loops)
-    async with Agent(config) as agent:
-        response = await agent.chat(f"Investigate this claim: {user_query}")
-        return await response.text()
-
 from datetime import datetime
 
 def calculate_dynamic_confidence(rag_results: list, llm_raw_confidence: float) -> float:
@@ -128,7 +99,6 @@ def calculate_dynamic_confidence(rag_results: list, llm_raw_confidence: float) -
 class TextRequest(BaseModel):
     content: str
 
-# Pipeline 1 & 2: Handles Raw Text & Pasted Article Links
 @app.post("/api/verify/text")
 @limiter.limit("10/minute")
 async def verify_text_endpoint(request: Request, payload: TextRequest):
@@ -141,50 +111,64 @@ async def verify_text_endpoint(request: Request, payload: TextRequest):
         if is_social_video_url(content):
             video_bytes, text_metadata, mime_type = download_social_video(content)
             if video_bytes:
-                # If we successfully downloaded a video, process it with the multimodal flow
                 clean_claim = await extract_claim_from_text(text_metadata)
                 
-                context_str = "NO EVIDENCE FOUND IN KNOWLEDGE BASE."
+                # Check Local Database Context
                 rag_results = []
+                context_str = "NO EVIDENCE FOUND IN KNOWLEDGE BASE."
                 if clean_claim:
                     rag_results = rag_service.retrieve_context(clean_claim)
                     if rag_results:
                         context_str = "\n".join([r["text"] for r in rag_results])
                 
-                result = await verify_multimodal_content(
-                    text_content=clean_claim,
-                    media_bytes=video_bytes,
-                    mime_type=mime_type,
-                    retrieved_context=context_str
-                )
-                
-                if result["status"] == "error":
-                    raise HTTPException(status_code=500, detail=result["message"])
+                # If local knowledge has sufficient evidence, complete local flow
+                if len(rag_results) >= 2:
+                    result = await verify_multimodal_content(
+                        text_content=clean_claim,
+                        media_bytes=video_bytes,
+                        mime_type=mime_type,
+                        retrieved_context=context_str
+                    )
+                    if result["status"] == "error":
+                        raise HTTPException(status_code=500, detail=result["message"])
+                        
+                    raw_conf = result["data"].get("confidence_score", 50.0)
+                    dynamic_conf = calculate_dynamic_confidence(rag_results, raw_conf)
                     
-                raw_conf = result["data"].get("confidence_score", 50.0)
-                dynamic_conf = calculate_dynamic_confidence(rag_results, raw_conf)
-                
-                if len(rag_results) < 2:
-                    result["data"]["verdict"] = "⚪ Unable to Verify"
-                    dynamic_conf = 0.0
-                    result["data"]["explanation"] = "Insufficient evidence to confidently verify this claim. Minimum 2 trusted sources required. " + result["data"].get("explanation", "")
-                
-                result["data"]["confidence_score"] = dynamic_conf
-                result["data"]["claimSummary"] = clean_claim
-                result["data"]["evidenceFound"] = "\n\n".join([r["text"] for r in rag_results]) if rag_results else "No verified evidence matched in database."
-                result["data"]["aiExplanation"] = result["data"].get("explanation", "")
-                result["data"]["sourceCitations"] = [r["source"] for r in rag_results] if rag_results else []
-                
-                return result
+                    result["data"]["confidence_score"] = dynamic_conf
+                    result["data"]["claimSummary"] = clean_claim
+                    result["data"]["evidenceFound"] = context_str
+                    result["data"]["aiExplanation"] = result["data"].get("explanation", "")
+                    result["data"]["sourceCitations"] = [r["source"] for r in rag_results]
+                    return result
+                else:
+                    # FALLBACK: Local database lacks sources. Run live Google search grounding instead
+                    from app.ai_modules.fact_checking.llm_client import llm_client
+                    search_result = llm_client.generate(clean_claim)
+                    
+                    verdict_str = search_result.get("verdict", "UNVERIFIED")
+                    emoji_verdict = "🟢 Verified" if verdict_str == "TRUE" else "🔴 False" if verdict_str == "FALSE" else "⚪ Unable to Verify"
+                    conf_val = 95.0 if verdict_str == "TRUE" else 90.0 if verdict_str == "FALSE" else 30.0
+                    citations = search_result.get("grounding_sources", [])
+                    
+                    return {
+                        "status": "success",
+                        "data": {
+                            "verdict": emoji_verdict,
+                            "confidence_score": conf_val,
+                            "claimSummary": clean_claim,
+                            "evidenceFound": "Verified via Live Google Search Grounding: " + ", ".join(citations) if citations else "Live Search Grounding complete.",
+                            "explanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
+                            "aiExplanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
+                            "sourceCitations": citations
+                        }
+                    }
                 
         # If not a social video, or download failed, try normal web scraping
         scraped_text = scrape_url(content)
         if not scraped_text.strip():
-            # Fallback logic: If content is blocked behind a bot-protection firewall,
-            # pass the raw URL alongside a direct request for Gemini to look it up via Search Grounding instead.
             content = f"Please research this specific URL link directly using your live search tool: {content}"
         else:
-            # Provide the scraped text to the pipeline
             content = f"Article Content: {scraped_text[:5000]}"
     
     # 1. Claim Extraction
@@ -192,51 +176,56 @@ async def verify_text_endpoint(request: Request, payload: TextRequest):
     
     # 2. Retrieve local RAG context using clean claim
     rag_results = rag_service.retrieve_context(clean_claim)
-    if rag_results:
+    
+    # Check if we have sufficient local curated database matches
+    if rag_results and len(rag_results) >= 2:
         context_str = "\n".join([r["text"] for r in rag_results])
         citations = [r["source"] for r in rag_results]
+        
+        result = await verify_multimodal_content(text_content=clean_claim, retrieved_context=context_str)
+        if result["status"] == "error":
+            raise HTTPException(status_code=500, detail=result["message"])
+            
+        raw_conf = result["data"].get("confidence_score", 50.0)
+        dynamic_conf = calculate_dynamic_confidence(rag_results, raw_conf)
+        
+        result["data"]["confidence_score"] = dynamic_conf
+        result["data"]["claimSummary"] = clean_claim
+        result["data"]["evidenceFound"] = context_str
+        result["data"]["aiExplanation"] = result["data"].get("explanation", "")
+        result["data"]["sourceCitations"] = citations
+        return result
     else:
-        context_str = "NO EVIDENCE FOUND IN KNOWLEDGE BASE."
-        citations = []
-    
-    # 3. Final Verification (pass the clean claim to reduce reasoning noise)
-    result = await verify_multimodal_content(text_content=clean_claim, retrieved_context=context_str)
-    
-    if result["status"] == "error":
-        error_str = result["message"]
-        if "429" in error_str or "Quota" in error_str:
-            raise HTTPException(
-                status_code=429, 
-                detail="Sukoon AI is experiencing heavy viral traffic. Please wait a moment and try verifying again."
-            )
-        raise HTTPException(status_code=500, detail=error_str)
+        # FALLBACK & EXEMPT FROM GUARDRAIL: Query Google live search grounding directly
+        from app.ai_modules.fact_checking.llm_client import llm_client
+        search_result = llm_client.generate(clean_claim)
         
-    # Combine signals for the dynamic confidence score
-    raw_conf = result["data"].get("confidence_score", 50.0)
-    dynamic_conf = calculate_dynamic_confidence(rag_results if 'rag_results' in locals() and rag_results else [], raw_conf)
-    
-    # GUARDRAIL: Require minimum 2 pieces of evidence
-    if len(rag_results) < 2:
-        result["data"]["verdict"] = "⚪ Unable to Verify"
-        dynamic_conf = 0.0
-        result["data"]["explanation"] = "Insufficient evidence to confidently verify this claim. Minimum 2 trusted sources required. " + result["data"].get("explanation", "")
+        verdict_str = search_result.get("verdict", "UNVERIFIED")
+        emoji_verdict = "🟢 Verified" if verdict_str == "TRUE" else "🔴 False" if verdict_str == "FALSE" else "⚪ Unable to Verify"
+        conf_val = 95.0 if verdict_str == "TRUE" else 90.0 if verdict_str == "FALSE" else 30.0
+        citations = search_result.get("grounding_sources", [])
         
-    result["data"]["confidence_score"] = dynamic_conf
-    result["data"]["claimSummary"] = clean_claim
-    result["data"]["evidenceFound"] = context_str
-    result["data"]["aiExplanation"] = result["data"].get("explanation", "")
-    result["data"]["sourceCitations"] = citations
-    return result
+        return {
+            "status": "success",
+            "data": {
+                "verdict": emoji_verdict,
+                "confidence_score": conf_val,
+                "claimSummary": clean_claim,
+                "evidenceFound": "Verified via Live Google Search Grounding: " + ", ".join(citations) if citations else "No live citations indexable.",
+                "explanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
+                "aiExplanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
+                "sourceCitations": citations
+            }
+        }
 
 # Pipeline 3: Handles Uploaded Images / Videos
 @app.post("/api/verify/media")
 @limiter.limit("5/minute")
 async def verify_media_endpoint(
     request: Request,
-    content: str = Form(None), # Optional accompanying text text description
+    content: str = Form(None),
     file: UploadFile = File(...)
 ):
-    # Validate accepted media types for safety boundaries
     allowed_types = [
         "image/jpeg", "image/png", "image/webp", 
         "video/mp4",
@@ -245,55 +234,60 @@ async def verify_media_endpoint(
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}")
         
-    # Read raw bytes straight out of the multi-part request stream
     file_bytes = await file.read()
     
-    # 1. Extract claim from text if provided (Media handles OCR implicitly in Gemini)
     clean_claim = ""
     if content:
         clean_claim = await extract_claim_from_text(content)
         
-    # 2. Retrieve local RAG context
     context_str = "NO EVIDENCE FOUND IN KNOWLEDGE BASE."
     citations = []
+    rag_results = []
     if clean_claim:
         rag_results = rag_service.retrieve_context(clean_claim)
         if rag_results:
             context_str = "\n".join([r["text"] for r in rag_results])
             citations = [r["source"] for r in rag_results]
-    
-    # 3. Final Verification
-    result = await verify_multimodal_content(
-        text_content=clean_claim,
-        media_bytes=file_bytes,
-        mime_type=file.content_type,
-        retrieved_context=context_str
-    )
-    
-    if result["status"] == "error":
-        error_str = result["message"]
-        if "429" in error_str or "Quota" in error_str:
-            raise HTTPException(
-                status_code=429, 
-                detail="Sukoon AI is experiencing heavy viral traffic. Please wait a moment and try verifying again."
-            )
-        raise HTTPException(status_code=500, detail=error_str)
+            
+    # Check if we have sufficient local curated context
+    if len(rag_results) >= 2:
+        result = await verify_multimodal_content(
+            text_content=clean_claim,
+            media_bytes=file_bytes,
+            mime_type=file.content_type,
+            retrieved_context=context_str
+        )
+        if result["status"] == "error":
+            raise HTTPException(status_code=500, detail=result["message"])
+            
+        raw_conf = result["data"].get("confidence_score", 50.0)
+        dynamic_conf = calculate_dynamic_confidence(rag_results, raw_conf)
         
-    # Combine signals for the dynamic confidence score
-    raw_conf = result["data"].get("confidence_score", 50.0)
-    
-    rag_list = rag_results if 'rag_results' in locals() and rag_results else []
-    dynamic_conf = calculate_dynamic_confidence(rag_list, raw_conf)
+        result["data"]["confidence_score"] = dynamic_conf
+        result["data"]["claimSummary"] = clean_claim
+        result["data"]["evidenceFound"] = context_str
+        result["data"]["aiExplanation"] = result["data"].get("explanation", "")
+        result["data"]["sourceCitations"] = citations
+        return result
+    else:
+        # Fallback to Live Google Search Grounding for media metadata/extracted claims
+        from app.ai_modules.fact_checking.llm_client import llm_client
+        search_result = llm_client.generate(clean_claim if clean_claim else "Analyze current uploaded file info")
         
-    # GUARDRAIL: Require minimum 2 pieces of evidence
-    if len(rag_list) < 2:
-        result["data"]["verdict"] = "⚪ Unable to Verify"
-        dynamic_conf = 0.0
-        result["data"]["explanation"] = "Insufficient evidence to confidently verify this claim. Minimum 2 trusted sources required. " + result["data"].get("explanation", "")
+        verdict_str = search_result.get("verdict", "UNVERIFIED")
+        emoji_verdict = "🟢 Verified" if verdict_str == "TRUE" else "🔴 False" if verdict_str == "FALSE" else "⚪ Unable to Verify"
+        conf_val = 95.0 if verdict_str == "TRUE" else 90.0 if verdict_str == "FALSE" else 30.0
+        citations = search_result.get("grounding_sources", [])
         
-    result["data"]["confidence_score"] = dynamic_conf
-    result["data"]["claimSummary"] = clean_claim
-    result["data"]["evidenceFound"] = context_str
-    result["data"]["aiExplanation"] = result["data"].get("explanation", "")
-    result["data"]["sourceCitations"] = citations
-    return result
+        return {
+            "status": "success",
+            "data": {
+                "verdict": emoji_verdict,
+                "confidence_score": conf_val,
+                "claimSummary": clean_claim if clean_claim else "Media content analysis",
+                "evidenceFound": "Verified via Live Google Search Grounding: " + ", ".join(citations) if citations else "No live citations indexable.",
+                "explanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
+                "aiExplanation": search_result.get("explanation", "Verified via Google Search Engine Grounding."),
+                "sourceCitations": citations
+            }
+        }
