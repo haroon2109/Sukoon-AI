@@ -25,7 +25,7 @@ const IndiaMap = () => (
 
 const ProcessingVerificationItem = () => {
    const [step, setStep] = useState(0)
-   const steps = ["Extracting entities...", "Querying AltNews API...", "Cross-referencing PIB...", "Synthesizing truth..."]
+   const steps = ["Extracting context...", "Initiating Google Search Grounding...", "Verifying global consensus...", "Synthesizing truth..."]
    
    useEffect(() => {
       const interval = setInterval(() => {

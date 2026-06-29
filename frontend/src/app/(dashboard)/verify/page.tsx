@@ -175,9 +175,9 @@ export default function VerifyPage() {
                 verdict={resultData.verdict}
                 confidenceScore={resultData.confidenceScore}
                 claimSummary={resultData.claimSummary}
-                actualFacts={resultData.actualFacts}
-                sourceCitations={resultData.sourceCitations}
-                peaceMessage={resultData.peaceMessage}
+                evidenceFound={resultData.evidenceFound || "No explicit evidence mapped in mock."}
+                aiExplanation={resultData.aiExplanation || resultData.actualFacts || "No explanation provided."}
+                sourceCitations={resultData.sourceCitations || []}
               />
             </div>
           </motion.div>

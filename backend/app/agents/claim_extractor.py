@@ -1,6 +1,9 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 import json
+import os
+from google import genai
+from google.genai import types
 
 class ExtractedClaim(BaseModel):
     claim: str = Field(description="The core, testable assertion being made in the text.")
@@ -8,49 +11,32 @@ class ExtractedClaim(BaseModel):
     date: Optional[str] = Field(description="The date or timeframe mentioned, if any.", default=None)
     confidence: float = Field(description="Confidence score of the extraction between 0.0 and 1.0.")
 
-def extract_claim_from_text(raw_text: str) -> dict:
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+async def extract_claim_from_text(raw_text: str) -> str:
     """
-    Claim Extraction Agent
-    
-    In a production environment, this function would call an LLM (e.g., OpenAI/Gemini)
-    with the raw_text and instruct it to return a JSON payload matching the 
-    ExtractedClaim Pydantic schema using structured outputs.
-    
-    For this MVP implementation, we use a heuristic simulation based on the prompt example.
+    Takes raw noisy text (or OCR text) and extracts the core claim using Gemini.
     """
-    
-    # Simulated LLM response parsing logic for the MVP
-    text_lower = raw_text.lower()
-    
-    # Default fallback
-    result = ExtractedClaim(
-        claim=raw_text,
-        location=None,
-        date=None,
-        confidence=0.85
+    persona = (
+        "You are a Claim Extraction Agent.\n"
+        "Your job is to read noisy user input and extract ONLY the core, testable assertion.\n"
+        "Ignore conversational filler, greetings, or panic.\n"
+        "Output the claim as a single clean sentence. Do not output anything else."
     )
     
-    # Specific simulation based on the user's example
-    if "violence in chennai today" in text_lower:
-        result = ExtractedClaim(
-            claim="Violence is currently occurring in the city.",
-            location="Chennai",
-            date="Today",
-            confidence=0.92
+    config = types.GenerateContentConfig(
+        system_instruction=persona,
+        temperature=0.0
+    )
+    
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[raw_text],
+            config=config
         )
-    elif "rbi" in text_lower and "1000" in text_lower:
-        result = ExtractedClaim(
-            claim="The Reserve Bank of India has issued new Rs 1000 notes.",
-            location="India",
-            date="Recent",
-            confidence=0.98
-        )
-        
-    return result.model_dump()
+        return response.text.strip()
+    except Exception as e:
+        # Fallback to returning the raw text if extraction fails
+        return raw_text.strip()
 
-if __name__ == "__main__":
-    # Test the agent
-    sample_input = "This video shows violence in Chennai today."
-    print(f"Input: {sample_input}")
-    print("Output:")
-    print(json.dumps(extract_claim_from_text(sample_input), indent=2))

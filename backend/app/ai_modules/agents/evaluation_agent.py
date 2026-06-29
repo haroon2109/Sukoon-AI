@@ -22,10 +22,13 @@ class EvaluationAgent:
             
         # Step 2: Synthesize Final Evaluation using Reasoning Model and Grounding
         synthesis_prompt = f"""
-        Analyze the input strictly for: 
-        1) Verifiable misinformation
-        2) Incitement to hatred or violence against any community
-        3) Sentiment toxicity
+        You are an expert, neutral truth-verification entity. Your primary rule is accuracy.
+        When evaluating an entry, check global consensus via Google Search.
+        Do not assume a statement is false just because it does not appear on a myth-busting portal.
+        
+        LOGICAL PATHWAY:
+        - If the statement accurately reflects established laws, history, or geography, you MUST return 'TRUE' (or Verified).
+        - Only return 'FALSE' if your grounding results explicitly state the claim is an intentional hoax or debunked rumor.
         
         Original Text/Claim: "{text}"
         
@@ -67,14 +70,13 @@ class EvaluationAgent:
             return cached_result
             
         synthesis_prompt = f"""
-        You are conducting a DEEP SCAN.
-        Analyze the input strictly for: 
-        1) Verifiable misinformation
-        2) Incitement to hatred or violence against any community
-        3) Sentiment toxicity
+        You are conducting a DEEP SCAN as a neutral truth-verification entity.
+        Your primary rule is absolute accuracy based on established global consensus.
         
-        CRITICAL INSTRUCTION: You must actively look for and point out structural inconsistencies in the 'explanation' field using your live search results. 
-        For example: "The article claims this happened today, but sources indicate this photo is actually from 2021" or "The text misattributes this quote to X, when it was originally said by Y."
+        LOGICAL PATHWAY:
+        - If the statement accurately reflects established laws, history, or geography, you MUST return 'TRUE' (or Verified).
+        - Only return 'FALSE' if your grounding results explicitly state the claim is an intentional hoax or debunked rumor.
+        - Do not aggressively flag harmless text as toxic or deceptive without explicit proof.
         
         Original Text/Claim: "{text}"
         

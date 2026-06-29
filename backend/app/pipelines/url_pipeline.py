@@ -17,13 +17,14 @@ def process_url_claim(url: str, is_deep: bool = False) -> dict:
         headline = article.title
         body = article.text
         
-        if not body:
-            return {"error": "Failed to extract text from URL.", "verdict": "Unverified"}
-            
-        combined_text = f"Headline: {headline}\n\nBody:\n{body}"
-        
-        # Limit the text length to avoid token limits
-        limited_text = combined_text[:10000] 
+        if not body or not body.strip():
+            # Fallback logic: If content is blocked behind a bot-protection firewall,
+            # pass the raw URL alongside a direct request for Gemini to look it up via Search Grounding instead.
+            limited_text = f"Please research this specific URL link directly using your live search tool: {url}"
+        else:
+            combined_text = f"Headline: {headline}\n\nBody:\n{body}"
+            # Limit the text length to avoid token limits
+            limited_text = combined_text[:10000] 
         
         # 3. Pass to evaluation pipeline
         return process_text_claim(limited_text, is_deep=is_deep)

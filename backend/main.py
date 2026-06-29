@@ -59,6 +59,8 @@ import asyncio
 from pydantic import BaseModel
 from fastapi import HTTPException
 from app.services.ai_engine import verify_multimodal_content
+from app.services.rag_service import rag_service
+from app.agents.claim_extractor import extract_claim_from_text
 
 async def run_sukoon_agent(user_query: str):
     # Configure the agent to run securely within your Google Cloud project bounds
@@ -77,6 +79,50 @@ async def run_sukoon_agent(user_query: str):
         response = await agent.chat(f"Investigate this claim: {user_query}")
         return await response.text()
 
+from datetime import datetime
+
+def calculate_dynamic_confidence(rag_results: list, llm_raw_confidence: float) -> float:
+    if not rag_results:
+        return min(llm_raw_confidence, 50.0)
+        
+    best_doc = rag_results[0]
+    
+    # 1. Evidence Similarity (40%)
+    sim = best_doc.get("similarity", 0.0)
+    sim_score = min(max(sim * 40.0, 0.0), 40.0)
+    
+    # 2. Source Reliability (30%)
+    source = best_doc.get("source", "").lower()
+    source_score = 15.0 # Default 50% of max
+    if "who" in source or "imd" in source or "government" in source:
+        source_score = 30.0
+    elif "pib" in source or "alt news" in source:
+        source_score = 27.0
+    elif "boom" in source:
+        source_score = 25.5
+        
+    # 3. LLM Consistency (20%)
+    llm_score = min(max((llm_raw_confidence / 100.0) * 20.0, 0.0), 20.0)
+    
+    # 4. Metadata Freshness (10%)
+    freshness_score = 5.0
+    date_str = best_doc.get("date", "")
+    if date_str:
+        try:
+            doc_date = datetime.strptime(date_str, "%Y-%m-%d")
+            days_old = (datetime.now() - doc_date).days
+            if days_old < 365:
+                freshness_score = 10.0
+            elif days_old < 365 * 3:
+                freshness_score = 7.0
+            else:
+                freshness_score = 3.0
+        except ValueError:
+            pass
+            
+    total = sim_score + source_score + llm_score + freshness_score
+    return round(min(max(total, 0.0), 100.0), 2)
+
 class TextRequest(BaseModel):
     content: str
 
@@ -87,11 +133,45 @@ async def verify_text_endpoint(request: Request, payload: TextRequest):
     if not payload.content.strip():
         raise HTTPException(status_code=400, detail="Content string is empty.")
     
-    # If it's a link, we pass the URL string directly. 
-    # Gemini handles browsing context automatically if given the URL in a grounded prompt.
-    result = await verify_multimodal_content(text_content=payload.content)
+    # 1. Claim Extraction
+    clean_claim = await extract_claim_from_text(payload.content)
+    
+    # 2. Retrieve local RAG context using clean claim
+    rag_results = rag_service.retrieve_context(clean_claim)
+    if rag_results:
+        context_str = "\n".join([r["text"] for r in rag_results])
+        citations = [r["source"] for r in rag_results]
+    else:
+        context_str = "NO EVIDENCE FOUND IN KNOWLEDGE BASE."
+        citations = []
+    
+    # 3. Final Verification (pass the clean claim to reduce reasoning noise)
+    result = await verify_multimodal_content(text_content=clean_claim, retrieved_context=context_str)
+    
     if result["status"] == "error":
-        raise HTTPException(status_code=500, detail=result["message"])
+        error_str = result["message"]
+        if "429" in error_str or "Quota" in error_str:
+            raise HTTPException(
+                status_code=429, 
+                detail="Sukoon AI is experiencing heavy viral traffic. Please wait a moment and try verifying again."
+            )
+        raise HTTPException(status_code=500, detail=error_str)
+        
+    # Combine signals for the dynamic confidence score
+    raw_conf = result["data"].get("confidence_score", 50.0)
+    dynamic_conf = calculate_dynamic_confidence(rag_results if 'rag_results' in locals() and rag_results else [], raw_conf)
+    
+    # GUARDRAIL: Require minimum 2 pieces of evidence
+    if len(rag_results) < 2:
+        result["data"]["verdict"] = "⚪ Unable to Verify"
+        dynamic_conf = 0.0
+        result["data"]["explanation"] = "Insufficient evidence to confidently verify this claim. Minimum 2 trusted sources required. " + result["data"].get("explanation", "")
+        
+    result["data"]["confidence_score"] = dynamic_conf
+    result["data"]["claimSummary"] = clean_claim
+    result["data"]["evidenceFound"] = context_str
+    result["data"]["aiExplanation"] = result["data"].get("explanation", "")
+    result["data"]["sourceCitations"] = citations
     return result
 
 # Pipeline 3: Handles Uploaded Images / Videos
@@ -110,12 +190,52 @@ async def verify_media_endpoint(
     # Read raw bytes straight out of the multi-part request stream
     file_bytes = await file.read()
     
+    # 1. Extract claim from text if provided (Media handles OCR implicitly in Gemini)
+    clean_claim = ""
+    if content:
+        clean_claim = await extract_claim_from_text(content)
+        
+    # 2. Retrieve local RAG context
+    context_str = "NO EVIDENCE FOUND IN KNOWLEDGE BASE."
+    citations = []
+    if clean_claim:
+        rag_results = rag_service.retrieve_context(clean_claim)
+        if rag_results:
+            context_str = "\n".join([r["text"] for r in rag_results])
+            citations = [r["source"] for r in rag_results]
+    
+    # 3. Final Verification
     result = await verify_multimodal_content(
-        text_content=content,
+        text_content=clean_claim,
         media_bytes=file_bytes,
-        mime_type=file.content_type
+        mime_type=file.content_type,
+        retrieved_context=context_str
     )
     
     if result["status"] == "error":
-        raise HTTPException(status_code=500, detail=result["message"])
+        error_str = result["message"]
+        if "429" in error_str or "Quota" in error_str:
+            raise HTTPException(
+                status_code=429, 
+                detail="Sukoon AI is experiencing heavy viral traffic. Please wait a moment and try verifying again."
+            )
+        raise HTTPException(status_code=500, detail=error_str)
+        
+    # Combine signals for the dynamic confidence score
+    raw_conf = result["data"].get("confidence_score", 50.0)
+    
+    rag_list = rag_results if 'rag_results' in locals() and rag_results else []
+    dynamic_conf = calculate_dynamic_confidence(rag_list, raw_conf)
+        
+    # GUARDRAIL: Require minimum 2 pieces of evidence
+    if len(rag_list) < 2:
+        result["data"]["verdict"] = "⚪ Unable to Verify"
+        dynamic_conf = 0.0
+        result["data"]["explanation"] = "Insufficient evidence to confidently verify this claim. Minimum 2 trusted sources required. " + result["data"].get("explanation", "")
+        
+    result["data"]["confidence_score"] = dynamic_conf
+    result["data"]["claimSummary"] = clean_claim
+    result["data"]["evidenceFound"] = context_str
+    result["data"]["aiExplanation"] = result["data"].get("explanation", "")
+    result["data"]["sourceCitations"] = citations
     return result

@@ -10,16 +10,41 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Strict system instructions to enforce neutral, unbiased community peace analysis
 SUKOON_PERSONA = (
-    "You are Sukoon AI, a strictly neutral, unbiased, and objective fact-checker. "
-    "Your mandate is to verify factual truth and flag hate speech to promote community peace. "
-    "You MUST use the Google Search tool to cross-reference claims against reputable global news "
-    "and journalistic fact-checkers before giving a response. Do not use personal assumptions."
+    "You are a reasoning engine and fact verification assistant.\n"
+    "Your task is NOT to guess. You MUST evaluate the claim based ONLY on the provided CONTEXT BLOCKS.\n"
+    "Do not use outside knowledge. Do not use Google Search.\n"
+    "Possible verdicts:\n"
+    "1. 🟢 Verified\n"
+    "2. 🟡 Needs Context\n"
+    "3. 🟠 Misleading\n"
+    "4. 🔴 False\n"
+    "5. ⚪ Unable to Verify\n\n"
+    "If the evidence clearly supports the claim, return 🟢 Verified.\n"
+    "If the evidence contradicts it, return 🔴 False.\n"
+    "If the evidence requires more context to be accurate, return 🟡 Needs Context.\n"
+    "If the claim is deceptive, return 🟠 Misleading.\n"
+    "If evidence is insufficient, return ⚪ Unable to Verify.\n\n"
+    "Never invent facts.\n"
+    "Never assume political intent.\n"
+    "Remain neutral.\n\n"
+    "CRITICAL: You MUST respond ONLY with a valid JSON object. Do not include any other text. "
+    "Use the following schema:\n"
+    "{\n"
+    "  \"verdict\": \"🟢 Verified\" | \"🟡 Needs Context\" | \"🟠 Misleading\" | \"🔴 False\" | \"⚪ Unable to Verify\",\n"
+    "  \"confidence_score\": <float>,\n"
+    "  \"explanation\": \"<string>\"\n"
+    "}"
 )
 
-async def verify_multimodal_content(text_content: str = None, media_bytes: bytes = None, mime_type: str = None) -> dict:
+import json
+
+async def verify_multimodal_content(text_content: str = None, media_bytes: bytes = None, mime_type: str = None, retrieved_context: str = "") -> dict:
     try:
         # 1. Base prompt construction
         contents = []
+        
+        if retrieved_context:
+            contents.append(f"CONTEXT BLOCKS:\n{retrieved_context}\n\nCLAIM TO VERIFY:\n")
         
         # If media is uploaded (Image or Video bytes)
         if media_bytes and mime_type:
@@ -36,11 +61,10 @@ async def verify_multimodal_content(text_content: str = None, media_bytes: bytes
         else:
             contents.append("Analyze this uploaded media for truth and potential hatred incitement.")
 
-        # 2. Inject Google Search Tool Configuration
+        # 2. Configure for pure reasoning (No Google Search Tool)
         config = types.GenerateContentConfig(
             system_instruction=SUKOON_PERSONA,
-            tools=[types.Tool(google_search=types.GoogleSearch())],
-            temperature=0.1
+            temperature=0.0
         )
         
         # gemini-2.5-flash handles mixed media inputs seamlessly
@@ -50,22 +74,25 @@ async def verify_multimodal_content(text_content: str = None, media_bytes: bytes
             config=config
         )
         
-        # 3. Extract grounding sources used to verify the truth
-        sources = []
-        if response.candidates:
-            candidate = response.candidates[0]
-            if getattr(candidate, 'grounding_metadata', None) and getattr(candidate.grounding_metadata, 'grounding_chunks', None):
-                for chunk in candidate.grounding_metadata.grounding_chunks:
-                    if getattr(chunk, 'web', None):
-                        sources.append({
-                            "title": getattr(chunk.web, 'title', 'Source'),
-                            "url": getattr(chunk.web, 'uri', '')
-                        })
-
+        # 3. We are using local RAG now, so the sources are not extracted from response candidates.
+        # Sources are passed from the RAG service to the frontend in main.py, so we just return the parsed JSON.
+                        
+        raw_text = response.text.strip()
+        if raw_text.startswith("```json"):
+            raw_text = raw_text[7:]
+        if raw_text.startswith("```"):
+            raw_text = raw_text[3:]
+        if raw_text.endswith("```"):
+            raw_text = raw_text[:-3]
+            
+        structured_data = json.loads(raw_text.strip())
+        
+        # We don't map the strings anymore, we just pass the raw emoji verdict to the frontend
+        # which will be parsed dynamically.
+            
         return {
             "status": "success",
-            "verdict_analysis": response.text,
-            "verified_sources": sources # Hands back real URLs to show the user/judges
+            "data": structured_data
         }
         
     except Exception as e:

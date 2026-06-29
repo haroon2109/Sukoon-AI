@@ -290,7 +290,7 @@ export default function AnalyzeContent() {
                             <div className="w-8 h-px bg-slate-300"></div>
                             <div className="flex items-center gap-2 group cursor-help">
                                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center"><Search className="w-4 h-4 text-slate-500 group-hover:text-emerald-500 transition-colors" /></div>
-                               <span className="text-xs font-bold text-slate-600">AltNews / PIB</span>
+                               <span className="text-xs font-bold text-slate-600">Google Search Grounding</span>
                             </div>
                             <div className="w-8 h-px bg-slate-300"></div>
                             <div className="flex items-center gap-2 group cursor-help">

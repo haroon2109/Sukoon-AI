@@ -5,9 +5,11 @@ export interface VerificationRecord {
   verdict: VerdictType;
   confidenceScore: number;
   claimSummary: string;
-  actualFacts: string;
-  sourceCitations: string[];
-  peaceMessage: string;
+  evidenceFound?: string;
+  aiExplanation?: string;
+  actualFacts?: string;
+  sourceCitations?: string[];
+  peaceMessage?: string;
   mediaType?: "image" | "video";
   mediaUrl?: string;
 }
@@ -18,9 +20,8 @@ export const mockVerifications: VerificationRecord[] = [
     verdict: "false",
     confidenceScore: 99,
     claimSummary: "RBI has issued new Rs 1000 notes and banned Rs 2000 notes immediately.",
-    actualFacts: "The RBI has not issued new Rs 1000 notes. While Rs 2000 notes were withdrawn from circulation in 2023, they remain legal tender. The viral video showing new Rs 1000 notes is digitally altered.",
-    sourceCitations: ["rbi.org.in/press-releases", "pib.gov.in/factcheck"],
-    peaceMessage: "Your money is safe. Please do not panic or rush to exchange notes based on unverified WhatsApp forwards. Always check official RBI announcements.",
+    evidenceFound: "Database match found on the subject.",
+    aiExplanation: "The AI has analyzed the evidence and found the claim to be verified based on the provided context.",
     mediaType: "image",
     mediaUrl: "/images/indian_currency.png"
   },
@@ -74,7 +75,7 @@ export const mockVerifications: VerificationRecord[] = [
     confidenceScore: 99,
     claimSummary: "UNESCO has declared India's National Anthem as the best in the world.",
     actualFacts: "UNESCO has explicitly clarified multiple times over the past decade that it has never held any such competition or made any such declaration about any national anthem.",
-    sourceCitations: ["unesco.org", "altnews.in"],
+    sourceCitations: ["unesco.org", "google.com"],
     peaceMessage: "We can be proud of our National Anthem without needing fake international awards. This is a very old internet hoax.",
     mediaType: "image",
     mediaUrl: "/images/unesco_anthem.png"
@@ -190,7 +191,7 @@ export const mockVerifications: VerificationRecord[] = [
     confidenceScore: 88,
     claimSummary: "This specific brand of packaged salt contains crushed glass and stones.",
     actualFacts: "The viral video showing 'glass' dissolving in water is actually just large salt crystals taking time to dissolve. FSSAI has tested the specific brand and found it safe for consumption.",
-    sourceCitations: ["fssai.gov.in", "altnews.in"],
+    sourceCitations: ["fssai.gov.in", "google.com"],
     peaceMessage: "Don't let food panic ruin your day. The food safety authorities monitor these brands, and the 'glass' is simply natural sea salt."
   },
   {
