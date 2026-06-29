@@ -1,4 +1,4 @@
-export type VerdictType = "verified" | "misleading" | "false" | "🟢 Verified" | "🟡 Needs Context" | "🟠 Misleading" | "🔴 False" | "⚪ Unable to Verify";
+import { VerdictType } from "@/components/shared/TruthCard";
 
 export interface VerificationRecord {
   id: string;

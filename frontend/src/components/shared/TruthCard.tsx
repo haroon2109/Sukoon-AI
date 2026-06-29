@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toJpeg } from "html-to-image"
 
-type VerdictType = "🟢 Verified" | "🟡 Needs Context" | "🟠 Misleading" | "🔴 False" | "⚪ Unable to Verify" | "verified" | "misleading" | "false" | "unverified"
+export type VerdictType = "🟢 Verified" | "🟡 Needs Context" | "🟠 Misleading" | "🔴 False" | "⚪ Unable to Verify" | "verified" | "misleading" | "false" | "unverified"
 
 interface TruthCardProps {
   verdict: VerdictType
