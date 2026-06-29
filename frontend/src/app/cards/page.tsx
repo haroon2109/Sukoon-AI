@@ -76,7 +76,7 @@ export default function ExampleCardsPage() {
               <div className="px-8 py-4 bg-slate-50 border-t border-slate-100">
                  <span className="text-[10px] font-bold text-slate-400 block mb-2 uppercase">Verified Sources:</span>
                  <div className="flex flex-wrap gap-2 items-center">
-                    {verification.sourceCitations.map((source, idx) => (
+                    {verification.sourceCitations?.map((source, idx) => (
                       <span key={idx} className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded">
                         {source}
                       </span>

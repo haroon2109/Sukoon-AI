@@ -1,4 +1,4 @@
-export type VerdictType = "verified" | "misleading" | "false";
+export type VerdictType = "verified" | "misleading" | "false" | "🟢 Verified" | "🟡 Needs Context" | "🟠 Misleading" | "🔴 False" | "⚪ Unable to Verify";
 
 export interface VerificationRecord {
   id: string;

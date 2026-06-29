@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toJpeg } from "html-to-image"
 
-type VerdictType = "🟢 Verified" | "🟡 Needs Context" | "🟠 Misleading" | "🔴 False" | "⚪ Unable to Verify"
+type VerdictType = "🟢 Verified" | "🟡 Needs Context" | "🟠 Misleading" | "🔴 False" | "⚪ Unable to Verify" | "verified" | "misleading" | "false" | "unverified"
 
 interface TruthCardProps {
   verdict: VerdictType
@@ -17,7 +17,7 @@ interface TruthCardProps {
   sourceCitations: string[]
 }
 
-const themeConfig = {
+const themeConfig: Record<string, any> = {
   "🟢 Verified": {
     bg: "bg-[#F9FAFB]",
     border: "border-teal-100/50",
@@ -64,6 +64,12 @@ const themeConfig = {
     label: "Unable to Verify",
   },
 }
+
+// Map legacy string formats to the correct UI theme
+themeConfig["verified"] = themeConfig["🟢 Verified"]
+themeConfig["misleading"] = themeConfig["🟠 Misleading"]
+themeConfig["false"] = themeConfig["🔴 False"]
+themeConfig["unverified"] = themeConfig["⚪ Unable to Verify"]
 
 export function TruthCard({
   verdict,
