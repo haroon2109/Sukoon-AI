@@ -24,7 +24,7 @@ export default function VerifyPage() {
     setProcessingStage("Connecting to Sukoon AI backend...")
     
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || ""
+      const baseUrl = "";
       let response;
 
       if (inputType === "media") {
