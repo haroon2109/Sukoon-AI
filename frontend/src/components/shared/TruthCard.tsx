@@ -2,7 +2,6 @@
 
 import { useRef } from "react"
 import { CheckCircle, AlertTriangle, XCircle, Link as LinkIcon, Share2, Download } from "lucide-react"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toJpeg } from "html-to-image"
 
@@ -17,7 +16,17 @@ interface TruthCardProps {
   sourceCitations: string[]
 }
 
-const themeConfig: Record<string, any> = {
+interface ThemeConfig {
+  bg: string
+  border: string
+  text: string
+  icon: JSX.Element
+  badgeBg: string
+  badgeText: string
+  label: string
+}
+
+const themeConfig: Record<string, ThemeConfig> = {
   "🟢 Verified": {
     bg: "bg-[#F9FAFB]",
     border: "border-teal-100/50",

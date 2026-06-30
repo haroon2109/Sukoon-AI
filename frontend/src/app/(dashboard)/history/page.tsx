@@ -4,8 +4,20 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Calendar, Filter, Link as LinkIcon, MoreVertical, Play, ChevronDown, CheckCircle2, XCircle, AlertCircle, HelpCircle, BarChart3, Image as ImageIcon, Loader2 } from "lucide-react"
 
+interface HistoryItem {
+  id: string;
+  verdict?: string;
+  platform?: string;
+  completed_at?: string;
+  claim?: {
+    extracted_claim?: string;
+    raw_content?: string;
+  };
+  confidence_score?: number;
+}
+
 export default function HistoryPage() {
-  const [historyItems, setHistoryItems] = useState<any[]>([])
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   
   // Pagination & Filters
@@ -382,7 +394,7 @@ export default function HistoryPage() {
   )
 }
 
-function ShieldIcon(props: any) {
+function ShieldIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>

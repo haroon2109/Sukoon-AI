@@ -213,7 +213,7 @@ export default function SettingsPage() {
                 </div>
                 <h3 className="text-[13px] font-bold text-slate-800 mb-2 leading-tight">Need Help?</h3>
                 <p className="text-[10px] font-medium text-slate-500 mb-6 leading-relaxed">
-                   If you're facing any issues or have questions, we're here to help.
+                   If you&apos;re facing any issues or have questions, we&apos;re here to help.
                 </p>
                 <Link href="/support" className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11px] font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-sm">
                    Contact Support <ChevronRight className="w-3 h-3 text-slate-400" />

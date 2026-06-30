@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { UploadCloud, Link as LinkIcon, FileText, Loader2 } from "lucide-react"
@@ -73,9 +73,9 @@ export default function VerifyPage() {
         throw new Error(data.message)
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("API error:", error)
-      alert(error.message)
+      alert(error instanceof Error ? error.message : "An unknown error occurred")
       setStep("input")
     }
   }
