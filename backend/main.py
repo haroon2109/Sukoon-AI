@@ -55,17 +55,15 @@ from app.services.downloader import is_social_video_url, download_social_video
 from datetime import datetime
 
 # Normalizes arbitrary model strings/emojis to strict, clean lowercase tokens matching Next.js state
-def map_verdict_to_token(raw_verdict: str) -> str:
+def clean_frontend_verdict(raw_verdict: str) -> str:
     v = str(raw_verdict).lower()
-    if any(word in v for word in ["verified", "true", "safe", "🟢"]):
+    if "verified" in v or "true" in v or "🟢" in v:
         return "verified"
-    elif any(word in v for word in ["misleading", "orange", "🟠"]):
+    if "misleading" in v or "🟠" in v:
         return "misleading"
-    elif any(word in v for word in ["unverified", "unable", "context", "yellow", "🟡", "⚪"]):
+    if "unable" in v or "unverified" in v or "⚪" in v or "🟡" in v:
         return "unverified"
-    elif any(word in v for word in ["false", "red", "🔴"]):
-        return "false"
-    return "unverified"
+    return "false"
 
 def calculate_dynamic_confidence(rag_results: list, llm_raw_confidence: float) -> float:
     if not rag_results:
@@ -166,7 +164,7 @@ async def verify_content_endpoint(request: Request, payload: TextRequest):
                     return {
                         "status": "success",
                         "data": {
-                            "verdict": map_verdict_to_token(raw_verdict),
+                            "verdict": clean_frontend_verdict(raw_verdict),
                             "confidenceScore": dynamic_conf,
                             "claimSummary": clean_claim,
                             "actualFacts": result["data"].get("explanation", ""),
@@ -186,7 +184,7 @@ async def verify_content_endpoint(request: Request, payload: TextRequest):
                     return {
                         "status": "success",
                         "data": {
-                            "verdict": map_verdict_to_token(verdict_str),
+                            "verdict": clean_frontend_verdict(verdict_str),
                             "confidenceScore": 95.0 if verdict_str == "TRUE" else 90.0 if verdict_str == "FALSE" else 30.0,
                             "claimSummary": clean_claim,
                             "actualFacts": explanation,
@@ -224,7 +222,7 @@ async def verify_content_endpoint(request: Request, payload: TextRequest):
         return {
             "status": "success",
             "data": {
-                "verdict": map_verdict_to_token(raw_verdict),
+                "verdict": clean_frontend_verdict(raw_verdict),
                 "confidenceScore": dynamic_conf,
                 "claimSummary": clean_claim,
                 "actualFacts": result["data"].get("explanation", ""),
@@ -244,7 +242,7 @@ async def verify_content_endpoint(request: Request, payload: TextRequest):
         return {
             "status": "success",
             "data": {
-                "verdict": map_verdict_to_token(verdict_str),
+                "verdict": clean_frontend_verdict(verdict_str),
                 "confidenceScore": 95.0 if verdict_str == "TRUE" else 90.0 if verdict_str == "FALSE" else 30.0,
                 "claimSummary": clean_claim,
                 "actualFacts": explanation,
@@ -302,7 +300,7 @@ async def verify_media_endpoint(
         return {
             "status": "success",
             "data": {
-                "verdict": map_verdict_to_token(raw_verdict),
+                "verdict": clean_frontend_verdict(raw_verdict),
                 "confidenceScore": dynamic_conf,
                 "claimSummary": clean_claim,
                 "actualFacts": result["data"].get("explanation", ""),
@@ -322,7 +320,7 @@ async def verify_media_endpoint(
         return {
             "status": "success",
             "data": {
-                "verdict": map_verdict_to_token(verdict_str),
+                "verdict": clean_frontend_verdict(verdict_str),
                 "confidenceScore": 95.0 if verdict_str == "TRUE" else 90.0 if verdict_str == "FALSE" else 30.0,
                 "claimSummary": clean_claim if clean_claim else "Media context analysis",
                 "actualFacts": explanation,
