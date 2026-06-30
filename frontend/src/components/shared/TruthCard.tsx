@@ -79,6 +79,7 @@ themeConfig["verified"] = themeConfig["🟢 Verified"]
 themeConfig["misleading"] = themeConfig["🟠 Misleading"]
 themeConfig["false"] = themeConfig["🔴 False"]
 themeConfig["unverified"] = themeConfig["⚪ Unable to Verify"]
+themeConfig["unable to verify"] = themeConfig["⚪ Unable to Verify"]
 
 export function TruthCard({
   verdict,
