@@ -70,13 +70,13 @@ export default function AnalyzeContent() {
       if (activeTab === "media") {
           // Note: In a full implementation, you'd want to attach a file input ref here.
           // For now, we fallback to text if they just clicked without a file.
-          response = await fetch(`${baseUrl}/api/verify/text`, {
+          response = await fetch(`${baseUrl}/api/verify`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ content: inputText })
           })
       } else {
-          response = await fetch(`${baseUrl}/api/verify/text`, {
+          response = await fetch(`${baseUrl}/api/verify`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ content: inputText })

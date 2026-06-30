@@ -35,13 +35,13 @@ export default function VerifyPage() {
             formData.append("content", textContent)
         }
         
-        response = await fetch(`${baseUrl}/api/verify/media`, {
+        response = await fetch(`${baseUrl}/api/v1/verify/media`, {
           method: "POST",
           body: formData
         })
       } else {
         setProcessingStage("Extracting claims and retrieving RAG evidence...")
-        response = await fetch(`${baseUrl}/api/verify/text`, {
+        response = await fetch(`${baseUrl}/api/verify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: textContent })
@@ -128,7 +128,7 @@ export default function VerifyPage() {
                 {inputType === "media" ? (
                   <div className="space-y-4">
                     <label className="block text-slate-700 font-medium text-left">Upload Audio, Video, or Image</label>
-                    <input type="file" onChange={handleFileChange} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" />
+                    <input type="file" aria-label="Upload Audio, Video, or Image" onChange={handleFileChange} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100" />
                     <textarea 
                         className="w-full mt-4 p-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20" 
                         rows={3} 

@@ -112,9 +112,9 @@ def calculate_dynamic_confidence(rag_results: list, llm_raw_confidence: float) -
 class TextRequest(BaseModel):
     content: str
 
-@app.post("/api/verify/text")
+@app.post("/api/verify")
 @limiter.limit("10/minute")
-async def verify_text_endpoint(request: Request, payload: TextRequest):
+async def verify_content_endpoint(request: Request, payload: TextRequest):
     content = payload.content.strip()
     if not content:
         raise HTTPException(status_code=400, detail="Content string is empty.")
@@ -254,7 +254,7 @@ async def verify_text_endpoint(request: Request, payload: TextRequest):
         }
 
 # Pipeline 3: Handles Uploaded Images / Videos
-@app.post("/api/verify/media")
+@app.post("/api/v1/verify/media")
 @limiter.limit("5/minute")
 async def verify_media_endpoint(
     request: Request,
