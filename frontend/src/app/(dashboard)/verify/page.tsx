@@ -24,7 +24,7 @@ export default function VerifyPage() {
     setProcessingStage("Connecting to Sukoon AI backend...")
     
     try {
-      const baseUrl = "";
+      const baseUrl = "https://sukoon-backend-62218171814.us-central1.run.app";
       let response;
 
       if (inputType === "media") {

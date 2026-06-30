@@ -59,7 +59,7 @@ export default function AnalyzeContent() {
     try {
       setAnalysisStep(0);
       
-      const baseUrl = "";
+      const baseUrl = "https://sukoon-backend-62218171814.us-central1.run.app";
       
       // We simulate stages visually while the request is in flight
       const stageInterval = setInterval(() => {
