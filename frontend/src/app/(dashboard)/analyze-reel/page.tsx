@@ -95,9 +95,10 @@ export default function AnalyzeContent() {
       if (data.status === "success") {
           const rawVerdict = data.data.verdict || "⚪ Unable to Verify";
           let simpleVerdict = "unable to verify";
-          if (rawVerdict.includes("Verified")) simpleVerdict = "true";
-          if (rawVerdict.includes("False")) simpleVerdict = "false";
-          if (rawVerdict.includes("Misleading") || rawVerdict.includes("Context")) simpleVerdict = "misleading";
+          const lowerVerdict = rawVerdict.toLowerCase();
+          if (lowerVerdict.includes("verified") || lowerVerdict === "true") simpleVerdict = "true";
+          if (lowerVerdict.includes("false")) simpleVerdict = "false";
+          if (lowerVerdict.includes("misleading") || lowerVerdict.includes("context")) simpleVerdict = "misleading";
           
           setTimeout(() => {
               setResultData({
