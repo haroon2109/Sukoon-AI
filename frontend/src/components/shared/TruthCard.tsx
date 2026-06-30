@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef } from "react"
+import React, { useRef } from "react"
 import { CheckCircle, AlertTriangle, XCircle, Link as LinkIcon, Share2, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toJpeg } from "html-to-image"
@@ -20,7 +20,7 @@ interface ThemeConfig {
   bg: string
   border: string
   text: string
-  icon: JSX.Element
+  icon: React.ReactNode
   badgeBg: string
   badgeText: string
   label: string
