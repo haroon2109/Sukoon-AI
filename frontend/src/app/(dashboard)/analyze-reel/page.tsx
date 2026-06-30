@@ -59,7 +59,7 @@ export default function AnalyzeContent() {
     try {
       setAnalysisStep(0);
       
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || ""
       
       // We simulate stages visually while the request is in flight
       const stageInterval = setInterval(() => {
