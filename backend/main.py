@@ -54,6 +54,7 @@ from app.agents.claim_extractor import extract_claim_from_text
 from app.services.scraper import is_url, scrape_url
 from app.services.downloader import is_social_video_url, download_social_video
 from app.services.audio_transcriber import audio_transcriber
+from app.services.video_processor import video_processor
 from datetime import datetime
 
 # Normalizes arbitrary model strings/emojis to strict, clean lowercase tokens matching Next.js state
@@ -309,12 +310,20 @@ async def verify_media_endpoint(
     
     # 1. Voice Note -> Text Conversion (Whisper)
     is_audio = file.content_type.startswith("audio/")
+    is_video = file.content_type.startswith("video/")
     transcribed_text = ""
+    
     if is_audio:
         transcribed_text = await audio_transcriber.transcribe(file_bytes, file.filename)
         # Clear media bytes so it routes to Groq Llama text pipeline instead of Gemini multimodal
         file_bytes = None 
         file.content_type = None
+    elif is_video:
+        # Extract audio track from video and get the spoken text claim for RAG vector search
+        transcribed_text = await video_processor.extract_audio_and_transcribe(file_bytes, file.filename)
+        # We also extract frames per architectural spec (can be used for visual diffing or passed to Gemini)
+        keyframes = video_processor.extract_keyframes(file_bytes, max_frames=5)
+        # We keep file_bytes intact so Gemini can do its native multimodal analysis on the raw video file
     
     clean_claim = ""
     if transcribed_text:

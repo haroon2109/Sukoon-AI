@@ -198,3 +198,5 @@ sentence-transformers>=2.2.2
 
 # Chunking
 langchain-text-splitters>=0.2.0
+opencv-python-headless
+ffmpeg-python
