@@ -53,6 +53,7 @@ from app.services.rag_service import rag_service
 from app.agents.claim_extractor import extract_claim_from_text
 from app.services.scraper import is_url, scrape_url
 from app.services.downloader import is_social_video_url, download_social_video
+from app.services.audio_transcriber import audio_transcriber
 from datetime import datetime
 
 # Normalizes arbitrary model strings/emojis to strict, clean lowercase tokens matching Next.js state
@@ -306,8 +307,19 @@ async def verify_media_endpoint(
         
     file_bytes = await file.read()
     
+    # 1. Voice Note -> Text Conversion (Whisper)
+    is_audio = file.content_type.startswith("audio/")
+    transcribed_text = ""
+    if is_audio:
+        transcribed_text = await audio_transcriber.transcribe(file_bytes, file.filename)
+        # Clear media bytes so it routes to Groq Llama text pipeline instead of Gemini multimodal
+        file_bytes = None 
+        file.content_type = None
+    
     clean_claim = ""
-    if content:
+    if transcribed_text:
+        clean_claim = await extract_claim_from_text(transcribed_text)
+    elif content:
         clean_claim = await extract_claim_from_text(content)
         
     context_str = "NO EVIDENCE FOUND IN KNOWLEDGE BASE."
