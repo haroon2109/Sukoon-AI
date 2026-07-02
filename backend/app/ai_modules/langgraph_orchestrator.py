@@ -9,6 +9,7 @@ from langgraph.graph import StateGraph, START, END
 from app.services.scraper import is_url, scrape_url
 from app.services.rag_service import rag_service
 from app.services.ai_engine import verify_multimodal_content
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,15 @@ class LangGraphOrchestrator:
         else:
             extracted = raw
             
-        return {"extracted_claim": extracted}
+        # Break text into semantically cohesive 500-character chunks
+        splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        chunks = splitter.split_text(extracted)
+        
+        # We can pass the chunks joined by newlines to downstream models, 
+        # which helps them process massive articles while retaining semantic meaning.
+        chunked_claim = "\n\n".join(chunks)
+            
+        return {"extracted_claim": chunked_claim}
 
     # Step 2b: Agent B (The Database Specialist) - Runs in parallel
     async def agent_b_database(self, state: AgentState) -> AgentState:
