@@ -7,7 +7,6 @@ from ..ai_modules.fact_checking.fact_verification import FactVerificationAgent
 from ..ai_modules.fact_checking.perspective_agent import PerspectiveAgent
 from ..ai_modules.fact_checking.shieldgemma_agent import ShieldGemmaAgent
 from ..ai_modules.fact_checking.synthid_agent import SynthIDAgent
-from langfuse.decorators import observe
 import uuid
 
 class AgenticWorkflowCoordinator:
@@ -37,7 +36,6 @@ class AgenticWorkflowCoordinator:
         # 3. Synchronous verification for MVP removed - handled by WebSocket
         return new_verification
 
-    @observe(name="process_verification_workflow")
     async def process_verification(self, text: str):
         """
         Coordinates the autonomous agents to execute the full AI verification workflow.
