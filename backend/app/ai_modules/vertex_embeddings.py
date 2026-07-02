@@ -1,3 +1,4 @@
+import os
 import logging
 from typing import List
 from sentence_transformers import SentenceTransformer
@@ -6,11 +7,14 @@ logger = logging.getLogger(__name__)
 
 class VertexEmbeddingService:
     """
-    Renamed internally to use BAAI/bge-small-en-v1.5 (Local HuggingFace Open Source)
-    but class name kept the same to maintain backwards compatibility with existing imports.
+    Service updated to support advanced multilingual RAG models:
+    - BAAI/bge-m3 (Default, 1024 dims)
+    - intfloat/multilingual-e5-large (1024 dims)
+    - nomic-ai/nomic-embed-text-v1.5 (768 dims)
+    Maintains class name for backwards compatibility.
     """
-    def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5"):
-        self.model_name = model_name
+    def __init__(self):
+        self.model_name = os.getenv("RAG_EMBEDDING_MODEL", "BAAI/bge-m3")
         self.initialized = False
         self.model = None
 
@@ -20,7 +24,8 @@ class VertexEmbeddingService:
 
         try:
             logger.info(f"Initializing Local Embedding Model '{self.model_name}'...")
-            self.model = SentenceTransformer(self.model_name)
+            # trust_remote_code=True is required for models like Nomic Embed
+            self.model = SentenceTransformer(self.model_name, trust_remote_code=True)
             self.initialized = True
             logger.info(f"Local Embedding Model '{self.model_name}' initialized successfully.")
         except Exception as e:
@@ -29,8 +34,8 @@ class VertexEmbeddingService:
 
     def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
-        Generate embeddings for a list of strings locally using bge-small.
-        Returns a list of 384-dimensional float arrays.
+        Generate embeddings for a list of strings locally using the configured model.
+        Returns a list of float arrays (dimensions depend on the model, e.g., 1024 for BGE-M3).
         """
         if not self.initialized:
             self.initialize()

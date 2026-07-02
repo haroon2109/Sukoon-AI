@@ -32,7 +32,7 @@ class RAGService:
             return []
 
         try:
-            # 1. Generate the Local HuggingFace vector (384 dimensions via bge-small)
+            # 1. Generate the Local HuggingFace vector (1024 dimensions via BGE-M3 by default)
             query_vector = vertex_embeddings.get_embedding(claim)
             if not query_vector:
                 return []
