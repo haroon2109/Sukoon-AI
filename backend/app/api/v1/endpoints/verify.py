@@ -128,7 +128,8 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
         stages = [
             {"step": "ingestion", "message": "Parsing media payload..."},
             {"step": "extraction", "message": "Extracting claims via LLM..."},
-            {"step": "vector_search", "message": "Querying Qdrant for known facts..."},
+            {"step": "vector_search", "message": "Querying local Qdrant/pgvector for known facts..."},
+            {"step": "web_search", "message": "Aggregating live web context via SearXNG..."},
             {"step": "synthesis", "message": "Synthesizing Peace Message..."}
         ]
         

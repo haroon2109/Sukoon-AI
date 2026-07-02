@@ -8,6 +8,7 @@ from langgraph.graph import StateGraph, START, END
 # Import the actual engines we built
 from app.services.scraper import is_url, scrape_url
 from app.services.rag_service import rag_service
+from app.services.searxng_service import searxng_service
 from app.services.ai_engine import verify_multimodal_content
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -18,6 +19,7 @@ class AgentState(TypedDict):
     raw_input: str
     extracted_claim: str
     historical_records: str
+    web_records: str
     final_report: Dict[str, Any]
     webhook_status: str
 
@@ -34,21 +36,23 @@ class LangGraphOrchestrator:
         self.graph.add_node("supervisor_ingestion", self.supervisor_ingestion)
         self.graph.add_node("agent_a_scraper", self.agent_a_scraper)
         self.graph.add_node("agent_b_database", self.agent_b_database)
-        self.graph.add_node("agent_c_truth_evaluator", self.agent_c_truth_evaluator)
+        self.graph.add_node("agent_c_web_search", self.agent_c_web_search)
+        self.graph.add_node("agent_d_truth_evaluator", self.agent_d_truth_evaluator)
         self.graph.add_node("downstream_webhook", self.downstream_webhook)
         
         # Define the directed workflow (edges)
         self.graph.add_edge(START, "supervisor_ingestion")
         
-        # Parallel Execution: Supervisor delegates to Agent A and Agent B concurrently
+        # Parallel Execution: Supervisor delegates to Agent A, Agent B, and Agent C concurrently
         self.graph.add_edge("supervisor_ingestion", "agent_a_scraper")
         self.graph.add_edge("supervisor_ingestion", "agent_b_database")
+        self.graph.add_edge("supervisor_ingestion", "agent_c_web_search")
         
-        # Fan-in: Both agents return results to Agent C
-        self.graph.add_edge(["agent_a_scraper", "agent_b_database"], "agent_c_truth_evaluator")
+        # Fan-in: All three agents return results to Agent D
+        self.graph.add_edge(["agent_a_scraper", "agent_b_database", "agent_c_web_search"], "agent_d_truth_evaluator")
         
         # Final Action: Trigger webhook and end
-        self.graph.add_edge("agent_c_truth_evaluator", "downstream_webhook")
+        self.graph.add_edge("agent_d_truth_evaluator", "downstream_webhook")
         self.graph.add_edge("downstream_webhook", END)
         
         # Compile the state graph into an executable runner
@@ -103,15 +107,32 @@ class LangGraphOrchestrator:
             
         return {"historical_records": records}
 
-    # Step 3: Synthesis and Debate
-    async def agent_c_truth_evaluator(self, state: AgentState) -> AgentState:
-        """The core Gemini model that synthesizes findings and writes the final JSON report."""
-        logger.info("[LangGraph] Agent C: Truth Evaluator synthesizing findings with Gemini 2.5 Flash...")
-        claim = state.get("extracted_claim", "")
-        records = state.get("historical_records", "")
+    # Step 2c: Agent C (The Live Web Searcher) - Runs in parallel
+    async def agent_c_web_search(self, state: AgentState) -> AgentState:
+        """Executes SearXNG search to find live web context."""
+        logger.info("[LangGraph] Agent C: Web Searcher querying SearXNG...")
+        raw = state.get("raw_input", "")
         
-        # Real logic: Call Gemini API using structured JSON Pydantic schema
-        response = await verify_multimodal_content(text_content=claim, retrieved_context=records)
+        # Only query if we have a reasonably short string, or we could extract keywords.
+        # For simplicity, we just pass the first 100 characters of raw_input.
+        search_query = raw[:100]
+        
+        web_records = await searxng_service.search(query=search_query, top_k=3)
+        return {"web_records": web_records}
+
+    # Step 3: Synthesis and Debate
+    async def agent_d_truth_evaluator(self, state: AgentState) -> AgentState:
+        """The core LLM that synthesizes findings and writes the final JSON report."""
+        logger.info("[LangGraph] Agent D: Truth Evaluator synthesizing findings...")
+        claim = state.get("extracted_claim", "")
+        historical_records = state.get("historical_records", "")
+        web_records = state.get("web_records", "")
+        
+        # Combine both historical RAG data and Live Web Search data
+        combined_context = f"=== HISTORICAL LOCAL RECORDS ===\n{historical_records}\n\n=== LIVE WEB SEARCH RECORDS ===\n{web_records}"
+        
+        # Real logic: Call LLM API using structured JSON schema
+        response = await verify_multimodal_content(text_content=claim, retrieved_context=combined_context)
         
         if response.get("status") == "success":
             final_report = response.get("data", {})
@@ -141,6 +162,7 @@ class LangGraphOrchestrator:
             raw_input=input_text,
             extracted_claim="",
             historical_records="",
+            web_records="",
             final_report={},
             webhook_status=""
         )
