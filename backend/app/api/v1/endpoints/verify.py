@@ -7,7 +7,7 @@ import asyncio
 from app.db.session import get_db
 from app.agents.context_verifier import ContextVerificationAgent
 from app.domain.schemas.schemas import ClaimCreate, UrlVerificationRequest
-from app.services.verification_service import verification_service
+from app.services.verification_service import agentic_workflow_coordinator
 from app.domain.models.users import User
 from app.api.dependencies.auth import get_current_user
 from fastapi import File, UploadFile
@@ -63,7 +63,7 @@ async def submit_media_for_verification(
             
     await file.seek(0)
     claim_in = ClaimCreate(raw_content=f"Uploaded media: {safe_filename}")
-    verification = verification_service.ingest_payload(db, claim_in, current_user.id)
+    verification = agentic_workflow_coordinator.ingest_payload(db, claim_in, current_user.id)
     
     return VerificationResponse(
         task_id=str(verification.id),
@@ -142,11 +142,12 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
             if claim:
                 claim_text = claim.raw_content
                 
-        from app.ai_modules.agents.evaluation_agent import evaluation_agent
-        result = await asyncio.to_thread(evaluation_agent.evaluate, claim_text)
+        from app.ai_modules.langgraph_orchestrator import langgraph_pipeline
+        result = await langgraph_pipeline.execute_graph(claim_text)
         
         # Correctly map all verdict signals into lowercase string tokens
-        frontend_verdict = map_verdict_to_token(result.get("verdict", ""))
+        raw_verdict = result.get("verdict", "")
+        frontend_verdict = map_verdict_to_token(raw_verdict)
             
         if verification:
             verification_repo.update(db, db_obj=verification, obj_in={
@@ -155,18 +156,33 @@ async def websocket_verification_stream(websocket: WebSocket, task_id: str, toke
                 "completed_at": datetime.utcnow()
             })
         
+        # Map our structured XAI Features into the exact payload the frontend TruthCard expects
+        confidence_val = result.get("confidence_score", 0.9)
+        if isinstance(confidence_val, (int, float)) and confidence_val <= 1.0:
+            confidence_percentage = int(confidence_val * 100)
+        else:
+            confidence_percentage = int(confidence_val)
+            
+        is_toxic = frontend_verdict == "toxic" or "TOXIC" in str(result.get("verdict_category", ""))
+        
+        # Convert Pydantic Citation models to dictionaries for JSON serialization if needed,
+        # but since we appended them as dicts/objects, we handle them safely.
+        citations = result.get("citations", [])
+        if citations and not isinstance(citations[0], dict):
+            citations = [c.model_dump() if hasattr(c, 'model_dump') else c.dict() for c in citations]
+            
         completed_stage = {
             "step": "completed", 
             "message": "Verification complete. Generating Truth Card.",
             "data": {
                 "verdict": frontend_verdict,
-                "confidenceScore": int(result.get("confidence_score", 0.9) * 100) if isinstance(result.get("confidence_score"), (int, float)) and result.get("confidence_score", 0.9) <= 1.0 else int(result.get("confidence_score", 90)),
+                "confidenceScore": confidence_percentage,
                 "claimSummary": claim_text[:100] + "...",
-                "actualFacts": result.get("explanation", ""),
-                "sourceCitations": result.get("sourceCitations", []),
-                "peaceMessage": result.get("suggested_action", "Your community relies on facts. Thank you for verifying before sharing."),
-                "toxicityScore": result.get("toxicity_score", 0),
-                "factualityScore": result.get("factuality_score", 100)
+                "actualFacts": result.get("explanation", "No synthesis provided."),
+                "sourceCitations": citations,
+                "peaceMessage": "Your community relies on facts. Thank you for verifying before sharing.",
+                "toxicityScore": 100 if is_toxic else 0,
+                "factualityScore": confidence_percentage if frontend_verdict == "verified" else (100 - confidence_percentage)
             }
         }
         await asyncio.sleep(0.5)

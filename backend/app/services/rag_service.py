@@ -1,8 +1,9 @@
 import os
 import json
 import logging
-import numpy as np
-from google import genai
+from sqlalchemy import text
+from app.db.session import SessionLocal
+from app.ai_modules.vertex_embeddings import vertex_embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -11,53 +12,87 @@ VECTOR_STORE_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", 
 class RAGService:
     def __init__(self):
         self.vector_store = []
-        self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-        self._load_vector_store()
+        self._load_local_fallback()
 
-    def _load_vector_store(self):
-        """Loads the pre-computed embeddings and metadata from disk."""
+    def _load_local_fallback(self):
+        """Loads a local JSON fallback in case the Supabase connection fails."""
         if os.path.exists(VECTOR_STORE_FILE):
             with open(VECTOR_STORE_FILE, "r", encoding="utf-8") as f:
                 self.vector_store = json.load(f)
-            logger.info(f"Loaded {len(self.vector_store)} vectors into RAG.")
         else:
-            logger.warning(f"Vector store not found at {VECTOR_STORE_FILE}")
-
-    def get_embedding(self, text: str) -> set:
-        """
-        Mock embedding generator using simple bag-of-words for lexical overlap
-        instead of random hashing to prevent noise.
-        """
-        import re
-        words = re.findall(r'\w+', text.lower())
-        # Filter out common stop words to improve basic matching
-        stop_words = {'the', 'is', 'in', 'at', 'of', 'on', 'and', 'a', 'to', 'for', 'it', 'that', 'this', 'with'}
-        return set([w for w in words if w not in stop_words])
+            logger.warning(f"Local fallback vector store not found at {VECTOR_STORE_FILE}")
 
     def retrieve_context(self, claim: str, top_k: int = 3) -> list:
         """
-        Retrieves relevant context by calculating Jaccard similarity between
-        the claim words and stored document words.
+        Retrieves relevant context.
+        Tier 1: Attempts a true semantic vector search using pgvector on Supabase.
+        Tier 2: Falls back to the local mock data if the database isn't connected.
         """
-        if not self.vector_store:
+        if not claim:
             return []
 
         try:
-            claim_words = self.get_embedding(claim)
+            # 1. Generate the Google AI Free Tier vector (768 dimensions)
+            query_vector = vertex_embeddings.get_embedding(claim)
+            if not query_vector:
+                return []
+
+            # 2. Attempt Supabase pgvector search
+            db = SessionLocal()
+            try:
+                # This assumes a table named 'documents' with a vector column 'embedding'
+                # The query calculates cosine distance (<=>) using pgvector
+                # Note: This will fail gracefully if the table doesn't exist or we are on SQLite
+                query = text("""
+                    SELECT title, text, source, date, 1 - (embedding <=> :vector) AS similarity
+                    FROM documents
+                    ORDER BY embedding <=> :vector
+                    LIMIT :top_k
+                """)
+                
+                # Format the vector as a string array for postgres
+                vector_str = f"[{','.join(map(str, query_vector))}]"
+                
+                result = db.execute(query, {"vector": vector_str, "top_k": top_k}).fetchall()
+                
+                if result:
+                    logger.info("Successfully retrieved RAG context from Supabase pgvector.")
+                    return [
+                        {
+                            "title": row.title,
+                            "text": row.text,
+                            "source": row.source,
+                            "date": row.date,
+                            "similarity": float(row.similarity)
+                        } for row in result
+                    ]
+            except Exception as db_e:
+                # Log at debug so it doesn't spam warnings if Supabase isn't configured during local dev
+                logger.debug(f"pgvector search bypassed (Supabase likely not configured): {db_e}")
+            finally:
+                db.close()
+                
         except Exception as e:
-            logger.error(f"Failed to embed claim: {e}")
-            return []
-            
-        if not claim_words:
+            logger.error(f"Failed to generate embedding or query database: {e}")
+
+        # Tier 2: Fallback to lexical matching if Supabase is offline
+        logger.info("Falling back to local RAG matching.")
+        return self._local_lexical_fallback(claim, top_k)
+
+    def _local_lexical_fallback(self, claim: str, top_k: int = 3) -> list:
+        """Simple bag-of-words fallback."""
+        import re
+        words = set(re.findall(r'\w+', claim.lower()))
+        stop_words = {'the', 'is', 'in', 'at', 'of', 'on', 'and', 'a', 'to', 'for', 'it', 'that', 'this', 'with'}
+        claim_words = words - stop_words
+
+        if not claim_words or not self.vector_store:
             return []
 
         scored_results = []
         for doc in self.vector_store:
-            # We compute the embedding on the fly for the doc if not stored as words, 
-            # but actually vector_store has random float arrays right now from generate_data.py
-            # So let's just use the doc's "title" and "text" to compute overlap dynamically
             doc_text = doc.get("title", "") + " " + doc.get("text", "")
-            doc_words = self.get_embedding(doc_text)
+            doc_words = set(re.findall(r'\w+', doc_text.lower())) - stop_words
             
             if not doc_words:
                 continue
@@ -66,14 +101,11 @@ class RAGService:
             union = len(claim_words.union(doc_words))
             similarity = intersection / union if union > 0 else 0
             
-            # Enforce a minimum threshold so we don't return completely unrelated junk!
             if similarity > 0.05:
                 scored_results.append((similarity, doc))
 
-        # Sort by similarity descending
         scored_results.sort(key=lambda x: x[0], reverse=True)
         
-        # Return top K results with injected similarity score
         final_results = []
         for sim, doc in scored_results[:top_k]:
             doc_copy = doc.copy()

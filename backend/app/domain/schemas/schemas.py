@@ -13,6 +13,21 @@ class SourcePlatform(str, Enum):
     YOUTUBE = "youtube"
     OTHER = "other"
 
+class RecommendedAction(str, Enum):
+    FLAG = "FLAG"
+    REMOVE = "REMOVE"
+    MONITOR = "MONITOR"
+    COUNTER_NARRATIVE = "COUNTER_NARRATIVE"
+    NO_ACTION = "NO_ACTION"
+
+class VerdictCategory(str, Enum):
+    VERIFIED_TRUE = "VERIFIED_TRUE"
+    FALSE = "FALSE"
+    MISLEADING = "MISLEADING"
+    UNVERIFIED_RUMOR = "UNVERIFIED_RUMOR"
+    SATIRE = "SATIRE"
+    TOXIC = "TOXIC"
+
 # --- User Schemas ---
 class UserBase(BaseModel):
     email: EmailStr
@@ -71,7 +86,19 @@ class ClaimResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ExtractedClaim(BaseModel):
+    claim_text: str
+    context: Optional[str] = None
+
+class ExtractedClaimsList(BaseModel):
+    claims: List[ExtractedClaim]
+
 # --- Verification Schemas ---
+class RetrievedEvidence(BaseModel):
+    source_url: Optional[str]
+    content: str
+    relevance_score: Optional[float] = None
+
 class EvidenceSourceSchema(BaseModel):
     source_name: str
     evidence_url: Optional[str]
@@ -90,12 +117,44 @@ class RiskScoreSchema(BaseModel):
     class Config:
         from_attributes = True
 
+class Citation(BaseModel):
+    source_url: str
+    direct_quote: str
+    justification: str
+
+class FactVerificationOutput(BaseModel):
+    summary_for_moderator: str
+    verdict_category: VerdictCategory
+    recommended_action: RecommendedAction
+    confidence_score: float
+    evidence_synthesis: str
+    counter_narrative_suggestion: Optional[str] = None
+    citations: List[Citation] = []
+
 class VerificationResponse(BaseModel):
     id: str
     claim_id: str
     status: str
     verdict: Optional[str]
+    explanation: Optional[str] = None
     generated_truth_card_url: Optional[str]
+    evidence_sources: List[EvidenceSourceSchema] = []
+    risk_scores: List[RiskScoreSchema] = []
+    
+    class Config:
+        from_attributes = True
+
+class ExplainableAIReport(BaseModel):
+    id: str
+    claim_id: str
+    status: str
+    summary_for_moderator: str
+    verdict_category: VerdictCategory
+    recommended_action: RecommendedAction
+    confidence_score: float
+    evidence_synthesis: str
+    counter_narrative_suggestion: Optional[str] = None
+    citations: List[Citation] = []
     evidence_sources: List[EvidenceSourceSchema] = []
     risk_scores: List[RiskScoreSchema] = []
     

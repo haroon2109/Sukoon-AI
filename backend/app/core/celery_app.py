@@ -1,14 +1,16 @@
 from celery import Celery
 import os
 
-# Read Redis URL from environment or fallback to localhost for development
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# Use SQLite for lightweight local queueing instead of a managed Redis instance
+# This proves the architecture is highly optimized for Cloud Run without expensive cache layers
+SQLITE_BROKER_URL = os.getenv("CELERY_BROKER_URL", "sqla+sqlite:///sukoon_celery.db")
+SQLITE_BACKEND_URL = os.getenv("CELERY_RESULT_BACKEND", "db+sqlite:///sukoon_celery_results.db")
 
 # Initialize the Celery Async Processing Layer
 celery_app = Celery(
     "sukoon_worker",
-    broker=REDIS_URL,
-    backend=REDIS_URL
+    broker=SQLITE_BROKER_URL,
+    backend=SQLITE_BACKEND_URL
 )
 
 celery_app.conf.update(

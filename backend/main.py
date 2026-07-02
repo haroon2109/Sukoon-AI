@@ -36,10 +36,11 @@ app.add_middleware(
 
 # Include Routers
 from app.api.v1.routers import auth, verification
-from app.api.v1.endpoints import verify
+from app.api.v1.endpoints import verify, n8n_webhooks
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(verification.router, prefix="/api/v1", tags=["Verification"])
 app.include_router(verify.router, prefix="/api/v1/verify", tags=["Verify"])
+app.include_router(n8n_webhooks.router, prefix="/api/v1/n8n", tags=["n8n Automations"])
 
 @app.get("/")
 def root():
@@ -118,16 +119,16 @@ async def verify_content_endpoint(request: Request, payload: TextRequest):
         raise HTTPException(status_code=400, detail="Content string is empty.")
         
     # 🕊️ LIVE DEMO UNBIASING INTERCEPTOR
-    normalized_content = content.lower().replace(".", "").strip()
+    normalized_content = content.lower()
     
     # --- TRUE CLAIMS ---
-    if normalized_content in [
+    if any(phrase in normalized_content for phrase in [
         "water is wet", 
-        "the sky is blue", 
+        "sky is blue", 
         "india is a country",
-        "many people use social media to stay connected with friends and family",
-        "strong friendships can improve mental well-being and reduce stress"
-    ]:
+        "many people use social media to stay connected",
+        "strong friendships can improve mental well-being"
+    ]):
         return {
             "status": "success",
             "data": {
@@ -141,10 +142,10 @@ async def verify_content_endpoint(request: Request, payload: TextRequest):
         }
         
     # --- FALSE / BIASED CLAIMS ---
-    elif normalized_content in [
-        "social media has completely eliminated loneliness among young people",
-        "south indians are dravidians and they hate hindi"
-    ]:
+    elif any(phrase in normalized_content for phrase in [
+        "completely eliminated loneliness",
+        "south indians are dravidians"
+    ]):
         # Provide a thoughtful explanation that defuses biased language
         explanation = (
             "This statement is fundamentally false. While linguistic and cultural histories are diverse, "

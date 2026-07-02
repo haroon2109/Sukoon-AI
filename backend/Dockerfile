@@ -16,6 +16,9 @@ COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Playwright browsers and OS dependencies (requires apt-get update on Debian slim)
+RUN apt-get update && playwright install chromium && playwright install-deps chromium
+
 # Copy the rest of the application code
 COPY . .
 

@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from typing import List
 from ....domain.schemas.schemas import ClaimCreate, VerificationResponse, VerificationHistoryItem, DashboardStatsResponse
 from datetime import datetime, timedelta
-from ....services.verification_service import verification_service
 from ....services.auth_service import auth_service
 from ....api.dependencies.database import get_db
 from ....api.dependencies.auth import get_current_user
