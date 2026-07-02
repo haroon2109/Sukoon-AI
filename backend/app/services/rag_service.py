@@ -1,9 +1,8 @@
 import os
 import json
 import logging
-from sqlalchemy import text
-from app.db.session import SessionLocal
 from app.ai_modules.vertex_embeddings import vertex_embeddings
+from app.services.qdrant_service import qdrant_service
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ class RAGService:
         self._load_local_fallback()
 
     def _load_local_fallback(self):
-        """Loads a local JSON fallback in case the Supabase connection fails."""
+        """Loads a local JSON fallback in case Qdrant is offline."""
         if os.path.exists(VECTOR_STORE_FILE):
             with open(VECTOR_STORE_FILE, "r", encoding="utf-8") as f:
                 self.vector_store = json.load(f)
@@ -25,8 +24,8 @@ class RAGService:
     def retrieve_context(self, claim: str, top_k: int = 3) -> list:
         """
         Retrieves relevant context.
-        Tier 1: Attempts a true semantic vector search using pgvector on Supabase.
-        Tier 2: Falls back to the local mock data if the database isn't connected.
+        Tier 1: Semantic vector search using Qdrant (Fact-checks, News, Gov, WHO).
+        Tier 2: Falls back to the local mock data if Qdrant fails or is empty.
         """
         if not claim:
             return []
@@ -37,43 +36,17 @@ class RAGService:
             if not query_vector:
                 return []
 
-            # 2. Attempt Supabase pgvector search
-            db = SessionLocal()
-            try:
-                # This assumes a table named 'documents' with a vector column 'embedding'
-                # The query calculates cosine distance (<=>) using pgvector
-                # Note: This will fail gracefully if the table doesn't exist or we are on SQLite
-                query = text("""
-                    SELECT title, text, source, date, 1 - (embedding <=> :vector) AS similarity
-                    FROM documents
-                    ORDER BY embedding <=> :vector
-                    LIMIT :top_k
-                """)
-                
-                # Format the vector as a string array for postgres
-                vector_str = f"[{','.join(map(str, query_vector))}]"
-                
-                result = db.execute(query, {"vector": vector_str, "top_k": top_k}).fetchall()
-                
-                if result:
-                    logger.info("Successfully retrieved RAG context from Supabase pgvector.")
-                    return [
-                        {
-                            "title": row.title,
-                            "text": row.text,
-                            "source": row.source,
-                            "date": row.date,
-                            "similarity": float(row.similarity)
-                        } for row in result
-                    ]
-            except Exception as db_e:
-                # Log at debug so it doesn't spam warnings if Supabase isn't configured during local dev
-                logger.debug(f"pgvector search bypassed (Supabase likely not configured): {db_e}")
-            finally:
-                db.close()
+            # 2. Attempt Qdrant search
+            qdrant_results = qdrant_service.search(query_vector=query_vector, top_k=top_k)
+            
+            if qdrant_results:
+                logger.info(f"Successfully retrieved {len(qdrant_results)} results from Qdrant.")
+                return qdrant_results
+            else:
+                logger.debug("Qdrant search returned no results. Proceeding to fallback.")
                 
         except Exception as e:
-            logger.error(f"Failed to generate embedding or query database: {e}")
+            logger.error(f"Failed to query Qdrant: {e}")
 
         # Tier 2: Fallback to lexical matching if Supabase is offline
         logger.info("Falling back to local RAG matching.")
