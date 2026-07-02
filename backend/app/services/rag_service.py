@@ -32,7 +32,7 @@ class RAGService:
             return []
 
         try:
-            # 1. Generate the Google AI Free Tier vector (768 dimensions)
+            # 1. Generate the Local HuggingFace vector (384 dimensions via bge-small)
             query_vector = vertex_embeddings.get_embedding(claim)
             if not query_vector:
                 return []

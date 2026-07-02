@@ -192,3 +192,6 @@ psycopg2-binary>=2.9.9
 # Fast Text LLM
 groq>=0.4.0
 langfuse>=2.0.0
+
+# Local Embeddings
+sentence-transformers>=2.2.2
