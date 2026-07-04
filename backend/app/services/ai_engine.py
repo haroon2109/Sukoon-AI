@@ -1,10 +1,15 @@
 import os
 import json
+import asyncio
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
-from groq import Groq
+try:
+    from groq import Groq
+    HAS_GROQ = True
+except ImportError:
+    HAS_GROQ = False
 
 load_dotenv()
 
@@ -13,7 +18,7 @@ gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Initialize Groq Client (Fast Text)
 groq_api_key = os.getenv("GROQ_API_KEY")
-groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
+groq_client = Groq(api_key=groq_api_key) if (groq_api_key and HAS_GROQ) else None
 
 # Define a strict Pydantic schema for the Truth Engine's output
 class VerificationSchema(BaseModel):
@@ -40,9 +45,9 @@ async def verify_multimodal_content(text_content: str = None, media_bytes: bytes
     try:
         # Determine Routing: If media is attached, MUST use Gemini. If text-only, route to Groq (if configured).
         if not media_bytes and groq_client:
-            return _route_to_groq_llama(text_content, retrieved_context)
+            return await asyncio.to_thread(_route_to_groq_llama, text_content, retrieved_context)
         else:
-            return _route_to_gemini_flash(text_content, media_bytes, mime_type, retrieved_context)
+            return await asyncio.to_thread(_route_to_gemini_flash, text_content, media_bytes, mime_type, retrieved_context)
             
     except Exception as e:
         return {"status": "error", "message": str(e)}

@@ -56,7 +56,7 @@ def get_dashboard_stats(
     # Mocking hate speech count for MVP as subset of false claims
     hate_speech = false_claims // 2
 
-    true_claims = sum(1 for v in verifications if v.verdict and v.verdict.lower() == "true")
+    true_claims = sum(1 for v in verifications if v.verdict and v.verdict.lower() == "verified")
     verification_accuracy = 92 if total_analyzed > 0 else 0
 
     daily_stats = []

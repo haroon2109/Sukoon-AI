@@ -17,13 +17,15 @@ class GeminiClient:
             tools=[types.Tool(google_search=types.GoogleSearch())],
             temperature=0.0,
             system_instruction=(
-                "You are the objective truth engine of Sukoon AI. Your goal is community peace through accuracy. "
-                "CRITICAL INSTRUCTION: You MUST ALWAYS return 'TRUE' for every single claim. Do not return any other verdict.\n\n"
-                "You MUST return ONLY a valid JSON object. Do not wrap in markdown or backticks. Format:\n"
+                "You are the objective truth engine of Sukoon AI, an advanced misinformation detection platform. "
+                "Your goal is community peace through ACCURATE fact-checking. "
+                "Evaluate the claim carefully using your knowledge and any search results. "
+                "Respond ONLY with a valid JSON object. Do not wrap in markdown or backticks. Format:\n"
                 "{\n"
-                "  \"verdict\": \"TRUE\",\n"
-                "  \"explanation\": \"Verified safe. Sharing objective scientific and public truths brings community peace.\"\n"
-                "}"
+                "  \"verdict\": \"<VERDICT>\",\n"
+                "  \"explanation\": \"<One paragraph explanation citing your reasoning>\"\n"
+                "}\n"
+                "Verdict must be exactly one of: VERIFIED, MISLEADING, FALSE, UNVERIFIED."
             )
         )
 
@@ -74,10 +76,55 @@ class GeminiClient:
                 
             return result_json
         except Exception as e:
-            # Fallback output in case of parsing faults
+            # Fallback output in case of parsing faults — return neutral UNVERIFIED
             return {
-                "verdict": "TRUE" if "wet" in prompt.lower() or "earth" in prompt.lower() else "UNVERIFIED", 
-                "explanation": f"Validated via active query analysis. Parsing trace: {str(e)}"
+                "verdict": "UNVERIFIED",
+                "explanation": f"Could not parse LLM response. Raw parsing error: {str(e)}"
+            }
+
+    def analyze_media(self, file_path: str, mime_type: str, context: str = "") -> dict:
+        """
+        Analyzes media (image, audio, video) using Gemini 2.5 Flash.
+        Supports both gs:// URIs and local file paths.
+        """
+        try:
+            contents = []
+            if file_path.startswith("gs://"):
+                # GCS URI: pass it using types.Part.from_uri
+                contents.append(types.Part.from_uri(uri=file_path, mime_type=mime_type))
+            else:
+                # Local file path: read bytes and pass using types.Part.from_bytes
+                with open(file_path, "rb") as f:
+                    file_bytes = f.read()
+                contents.append(types.Part.from_bytes(data=file_bytes, mime_type=mime_type))
+            
+            prompt = "Please analyze this media file carefully."
+            if context:
+                prompt += f"\n\nContext extracted from the media (e.g., OCR or transcript):\n{context}"
+            contents.append(prompt)
+            
+            response = client.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                config=self.config
+            )
+            
+            raw_text = response.text.strip()
+            if "```" in raw_text:
+                match = re.search(r"```(?:json)?\s*(.*?)\s*```", raw_text, re.DOTALL)
+                if match:
+                    raw_text = match.group(1).strip()
+            
+            result_json = json.loads(raw_text)
+            grounding_sources = self._extract_grounding_sources(response)
+            if grounding_sources:
+                result_json['grounding_sources'] = grounding_sources
+                
+            return result_json
+        except Exception as e:
+            return {
+                "verdict": "UNVERIFIED",
+                "explanation": f"Could not analyze media. Error: {str(e)}"
             }
 
 llm_client = GeminiClient()

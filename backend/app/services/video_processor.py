@@ -70,8 +70,8 @@ class VideoProcessor:
     @staticmethod
     def extract_keyframes(video_bytes: bytes, max_frames: int = 5) -> list[bytes]:
         """
-        Extracts evenly spaced keyframes from the video using OpenCV.
-        Returns a list of JPEG encoded frame bytes.
+        Extracts keyframes from the video using OpenCV.
+        Down-samples resolution to maximum 720p and caps sample rate to 1 frame per second (max 30 total frames) to prevent OOM.
         """
         if not video_bytes:
             return []
@@ -84,7 +84,7 @@ class VideoProcessor:
                 temp_video.write(video_bytes)
                 temp_video_path = temp_video.name
                 
-            logger.info("Extracting keyframes using OpenCV...")
+            logger.info("Extracting keyframes using OpenCV (with down-sampling)...")
             cap = cv2.VideoCapture(temp_video_path)
             
             if not cap.isOpened():
@@ -98,9 +98,17 @@ class VideoProcessor:
                 logger.warning("Invalid video properties detected by OpenCV.")
                 return frames
                 
-            # Calculate frame indices to extract (evenly spaced)
-            step = max(1, total_frames // max_frames)
-            target_frames = [i * step for i in range(max_frames)]
+            # Cap rate to 1 frame per second of video duration
+            frame_interval = max(1, int(round(fps)))
+            target_frames = [i * frame_interval for i in range(int(total_frames / frame_interval) + 1)]
+            
+            # Cap maximum frames to 30 to prevent Out-Of-Memory exceptions
+            if len(target_frames) > 30:
+                step = max(1, len(target_frames) // 30)
+                target_frames = [target_frames[i * step] for i in range(30)]
+            
+            target_frames_set = set(target_frames)
+            max_target = max(target_frames_set) if target_frames_set else 0
             
             current_frame_idx = 0
             while True:
@@ -108,14 +116,22 @@ class VideoProcessor:
                 if not ret:
                     break
                     
-                if current_frame_idx in target_frames:
+                if current_frame_idx in target_frames_set:
+                    # Enforce maximum resolution of 720p (1280x720) preserving aspect ratio
+                    h, w = frame.shape[:2]
+                    max_h, max_w = 720, 1280
+                    if h > max_h or w > max_w:
+                        scale = min(max_h / h, max_w / w)
+                        new_h, new_w = int(h * scale), int(w * scale)
+                        frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                        
                     # Encode frame to JPEG bytes
                     success, buffer = cv2.imencode('.jpg', frame)
                     if success:
                         frames.append(buffer.tobytes())
                         
                 current_frame_idx += 1
-                if current_frame_idx > max(target_frames):
+                if current_frame_idx > max_target:
                     break
                     
             cap.release()

@@ -28,7 +28,6 @@ class VerdictCategory(str, Enum):
     SATIRE = "SATIRE"
     TOXIC = "TOXIC"
 
-# --- User Schemas ---
 class UserBase(BaseModel):
     email: EmailStr
     organization_name: Optional[str] = Field(None, max_length=100)
@@ -36,7 +35,9 @@ class UserBase(BaseModel):
     @field_validator("organization_name")
     def sanitize_org_name(cls, v):
         if v is not None:
-            return bleach.clean(v, strip=True)
+            # Strip null bytes and dangerous control characters
+            cleaned = "".join(ch for ch in v if ord(ch) >= 32).strip()
+            return bleach.clean(cleaned, strip=True)
         return v
 
 class UserCreate(UserBase):
@@ -64,7 +65,7 @@ class UserResponse(UserBase):
 # --- Verification Requests ---
 class UrlVerificationRequest(BaseModel):
     url: HttpUrl
-    source_platform: SourcePlatform
+    source_platform: SourcePlatform = SourcePlatform.OTHER
 
 # --- Claim Schemas ---
 class ClaimCreate(BaseModel):
@@ -73,7 +74,13 @@ class ClaimCreate(BaseModel):
     
     @field_validator("raw_content")
     def sanitize_content(cls, v):
-        return bleach.clean(v, strip=True)
+        if not v:
+            raise ValueError("Content cannot be null or empty.")
+        # Strip null bytes and non-printable control characters, preserving newlines
+        cleaned = "".join(ch for ch in v if ord(ch) >= 32 or ch in "\n\r\t").strip()
+        if not cleaned:
+            raise ValueError("Content cannot consist only of whitespace or control characters.")
+        return bleach.clean(cleaned, strip=True)
 
 class ClaimResponse(BaseModel):
     id: str

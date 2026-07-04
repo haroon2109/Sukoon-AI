@@ -43,3 +43,13 @@ async def extract_claim_from_text(raw_text: str) -> str:
         # Fallback to returning the raw text if extraction fails
         return raw_text.strip()
 
+
+class ClaimExtractorAgent:
+    async def extract(self, text: str) -> dict:
+        """
+        Wrapper to match the SupervisorAgent expectation.
+        Returns a dict with 'claim' key.
+        """
+        claim_text = await extract_claim_from_text(text)
+        return {"claim": claim_text}
+

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, WebSocket, WebSocketDisconnect, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from uuid import UUID
 import asyncio
+import uuid as uuid_lib
 
 from app.db.session import get_db
 from app.agents.context_verifier import ContextVerificationAgent
@@ -38,7 +38,7 @@ async def submit_text_for_verification(
     
     # Trigger Celery Task
     from app.workers.task_pipelines import process_claim_task
-    process_claim_task.delay(claim_type="text", content=text_req.content, verification_id=str(verification.id))
+    process_claim_task.delay(claim_type="text", verification_id=str(verification.id))
     
     return VerificationResponse(
         task_id=str(verification.id),
@@ -60,7 +60,7 @@ async def submit_url_for_verification(
     
     # Trigger Celery Task
     from app.workers.task_pipelines import process_claim_task
-    process_claim_task.delay(claim_type="url", content=url_req.url, verification_id=str(verification.id))
+    process_claim_task.delay(claim_type="url", verification_id=str(verification.id))
     
     return VerificationResponse(
         task_id=str(verification.id),
@@ -83,7 +83,7 @@ async def submit_media_for_verification(
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, MP3, and MP4 are allowed.")
         
-    safe_filename = secure_filename(file.filename)
+    safe_filename = f"{uuid_lib.uuid4().hex}_{secure_filename(file.filename)}"
     
     file_size = 0
     while chunk := await file.read(8192):
@@ -93,9 +93,10 @@ async def submit_media_for_verification(
             
     await file.seek(0)
     
-    # Save the file securely to disk
-    os.makedirs("uploads", exist_ok=True)
-    file_path = os.path.join("uploads", safe_filename)
+    # Save to /tmp for Cloud Run compatibility (ephemeral container filesystem)
+    upload_dir = os.path.join("/tmp", "sukoon_uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, safe_filename)
     with open(file_path, "wb") as f:
         while chunk := await file.read(8192):
             f.write(chunk)
@@ -103,9 +104,13 @@ async def submit_media_for_verification(
     claim_in = ClaimCreate(raw_content=f"Uploaded media: {file_path}")
     verification = agentic_workflow_coordinator.ingest_payload(db, claim_in, current_user.id)
     
-    # Trigger Celery Task
-    from app.workers.task_pipelines import dispatch_multimodal_pipeline
-    dispatch_multimodal_pipeline(file_path=file_path, verification_id=str(verification.id))
+    # Fire Celery task asynchronously — do NOT call synchronously (blocks event loop)
+    from app.workers.task_pipelines import process_claim_task
+    process_claim_task.delay(
+        claim_type="media",
+        verification_id=str(verification.id),
+        mime_type=file.content_type
+    )
     
     return VerificationResponse(
         task_id=str(verification.id),

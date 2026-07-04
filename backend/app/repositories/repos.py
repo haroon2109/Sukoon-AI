@@ -15,13 +15,14 @@ class UserRepository(BaseRepository[User]):
     def get_by_api_key(self, db: Session, api_key: str) -> User:
         return db.query(User).filter(User.api_key == api_key).first()
         
-    def create_user(self, db: Session, email: str, organization_name: str) -> User:
-        # Generate a secure API key
-        api_key = f"sk_live_{uuid.uuid4().hex}"
+    def create_user(self, db: Session, email: str, organization_name: str,
+                    hashed_password: str, api_key: str, verification_token: str) -> User:
         return self.create(db, {
             "email": email,
             "organization_name": organization_name,
-            "api_key": api_key
+            "hashed_password": hashed_password,
+            "api_key": api_key,
+            "verification_token": verification_token,
         })
 
 class ClaimRepository(BaseRepository[Claim]):

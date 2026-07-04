@@ -33,6 +33,22 @@ class EasyOCREngine:
         if not os.path.exists(image_path):
             return f"Error: File not found: {image_path}"
             
+        # Defensive Shape and Corruption Validation Guard
+        try:
+            import cv2
+            img = cv2.imread(image_path)
+            if img is None or img.size == 0 or len(img.shape) < 2:
+                print(f"Defensive Guard: EasyOCR received empty or corrupted image array: {image_path}")
+                return ""
+        except Exception:
+            try:
+                from PIL import Image
+                with Image.open(image_path) as img:
+                    if img.size[0] == 0 or img.size[1] == 0:
+                        return ""
+            except Exception:
+                pass
+            
         try:
             # detail=0 returns just the raw text strings, stripping out bounding boxes and confidences
             results = self.reader.readtext(image_path, detail=0)

@@ -2,8 +2,13 @@ import os
 import uuid
 import logging
 from typing import List, Dict, Any
-from qdrant_client import QdrantClient
-from qdrant_client.http import models
+
+try:
+    from qdrant_client import QdrantClient
+    from qdrant_client.http import models
+    HAS_QDRANT = True
+except ImportError:
+    HAS_QDRANT = False
 
 logger = logging.getLogger(__name__)
 
@@ -17,21 +22,40 @@ class QdrantService:
         self.collection_name = "sukoon_facts"
         self.vector_size = int(os.getenv("QDRANT_VECTOR_SIZE", "1024")) # Default to 1024 for BGE-M3
         
+        if not HAS_QDRANT:
+            logger.warning("qdrant-client is not installed. Qdrant Service is disabled.")
+            self.client = None
+            return
+            
         qdrant_url = os.getenv("QDRANT_URL")
         qdrant_api_key = os.getenv("QDRANT_API_KEY")
         
-        try:
-            if qdrant_url and qdrant_api_key:
-                logger.info("Initializing Qdrant Cloud client...")
-                self.client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-            else:
-                logger.info("Initializing local in-memory Qdrant client (stateless)...")
-                self.client = QdrantClient(":memory:")
-                
-            self._ensure_collection()
-        except Exception as e:
-            logger.error(f"Failed to initialize Qdrant: {e}")
-            self.client = None
+        # Exponential backoff reconnection parameters for managed Qdrant DB instances
+        import time
+        max_attempts = 5
+        delay = 1.0
+        backoff_factor = 2.0
+        
+        for attempt in range(1, max_attempts + 1):
+            try:
+                if qdrant_url and qdrant_api_key:
+                    logger.info(f"Initializing Qdrant Cloud client (attempt {attempt}/{max_attempts})...")
+                    self.client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key, timeout=10.0)
+                else:
+                    logger.info("Initializing local in-memory Qdrant client (stateless)...")
+                    self.client = QdrantClient(":memory:")
+                    
+                self._ensure_collection()
+                break  # Connection successful
+            except Exception as e:
+                logger.error(f"Qdrant initialization attempt {attempt} failed: {e}", exc_info=True)
+                self.client = None
+                if attempt == max_attempts:
+                    logger.critical("Unable to establish connection to Qdrant cluster after max backoff retries.")
+                    break
+                logger.info(f"Retrying connection in {delay}s...")
+                time.sleep(delay)
+                delay *= backoff_factor
 
     def _ensure_collection(self):
         """Creates the collection if it doesn't exist."""
@@ -53,21 +77,30 @@ class QdrantService:
 
     def insert_documents(self, documents: List[Dict[str, Any]]):
         """
-        Inserts documents into Qdrant. 
-        Expected document format: {"vector": [float, ...], "payload": {"title": "...", "text": "...", "source": "..."}}
+        Inserts documents into Qdrant using deterministic payload hashing.
+        Enforces identical claim text segments override/upsert instead of duplicating.
         """
         if not self.client:
             logger.error("Qdrant client not initialized.")
             return False
             
+        import hashlib
         points = []
         for doc in documents:
-            point_id = str(uuid.uuid4())
+            payload = doc.get("payload", {})
+            # Hash text (or fallback to title or vector) to create a deterministic ID
+            text_to_hash = payload.get("text", "") or payload.get("title", "") or str(doc["vector"])
+            
+            hasher = hashlib.sha256()
+            hasher.update(text_to_hash.encode("utf-8"))
+            hex_hash = hasher.hexdigest()
+            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, hex_hash))
+            
             points.append(
                 models.PointStruct(
                     id=point_id,
                     vector=doc["vector"],
-                    payload=doc.get("payload", {})
+                    payload=payload
                 )
             )
             
@@ -76,7 +109,7 @@ class QdrantService:
                 collection_name=self.collection_name,
                 points=points
             )
-            logger.info(f"Inserted {len(points)} documents into Qdrant.")
+            logger.info(f"Inserted/Updated {len(points)} documents in Qdrant with deterministic IDs.")
             return True
         return False
 

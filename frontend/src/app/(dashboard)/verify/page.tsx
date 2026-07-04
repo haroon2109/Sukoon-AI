@@ -16,98 +16,83 @@ export default function VerifyPage() {
   const [processingStage, setProcessingStage] = useState<string>("Initializing pipeline...")
   const [textContent, setTextContent] = useState("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isError, setIsError] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
   
   const handleVerify = async () => {
     if (inputType !== "media" && !textContent.trim()) return;
     if (inputType === "media" && !selectedFile) return;
 
     setStep("processing")
+    setIsError(false)
+    setErrorMessage("")
     setProcessingStage("Connecting to Sukoon AI backend...")
+    
+    // Simulate stages
+    const stages = [
+      "Uploading media and running OCR...",
+      "Extracting claims and retrieving RAG evidence...",
+      "Analyzing reasoning and generating peace verdict..."
+    ];
+    let stageIdx = 0;
+    const stageInterval = setInterval(() => {
+      if (stageIdx < stages.length) {
+        setProcessingStage(stages[stageIdx]);
+        stageIdx++;
+      }
+    }, 2000);
     
     try {
       let response;
 
       if (inputType === "media") {
-        setProcessingStage("Uploading media and running OCR...")
         const formData = new FormData()
         formData.append("file", selectedFile!)
         if (textContent) {
             formData.append("content", textContent)
         }
         
-        response = await fetchWithAuth(`/api/v1/verify/media`, {
+        response = await fetch(`/api/analyze`, {
           method: "POST",
           body: formData
         })
-      } else if (inputType === "url") {
-        setProcessingStage("Extracting claims and retrieving RAG evidence...")
-        response = await fetchWithAuth(`/api/v1/verify/url`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: textContent })
-        })
       } else {
-        setProcessingStage("Extracting claims and retrieving RAG evidence...")
-        response = await fetchWithAuth(`/api/v1/verify/text`, {
+        response = await fetch(`/api/analyze`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: textContent })
         })
       }
       
+      clearInterval(stageInterval);
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || "Verification failed")
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Verification failed")
       }
 
-      const data = await response.json()
+      const resData = await response.json()
       
-      if (data.status === "processing" && data.task_id) {
-        setProcessingStage("Analyzing reasoning and generating peace verdict...")
-        // Poll for results
-        const maxAttempts = 30;
-        let attempt = 0;
-        
-        const pollInterval = setInterval(async () => {
-            attempt++;
-            try {
-                const pollRes = await fetchWithAuth(`/api/v1/${data.task_id}`);
-                if (pollRes.ok) {
-                    const pollData = await pollRes.json();
-                    if (pollData.status === "completed") {
-                        clearInterval(pollInterval);
-                        setResultData({
-                          id: pollData.request_id,
-                          verdict: pollData.verdict,
-                          confidenceScore: pollData.confidence_score,
-                          claimSummary: textContent,
-                          evidenceFound: true,
-                          aiExplanation: pollData.matched_context,
-                          sourceCitations: pollData.source_urls || []
-                        });
-                        setStep("result");
-                    } else if (pollData.status === "error" || pollData.status === "failed") {
-                        clearInterval(pollInterval);
-                        throw new Error(pollData.matched_context || "Verification failed during processing.");
-                    }
-                }
-            } catch (err) {
-                console.error("Polling error", err);
-            }
-            
-            if (attempt >= maxAttempts) {
-                clearInterval(pollInterval);
-                setStep("input");
-                alert("Verification timed out. Please check your history later.");
-            }
-        }, 2000);
+      if (resData.success && resData.data) {
+        setResultData({
+          id: Math.random().toString(36).substr(2, 9),
+          verdict: resData.data.verdict,
+          confidenceScore: resData.data.confidenceScore,
+          claimSummary: textContent || (selectedFile ? selectedFile.name : "Uploaded media content"),
+          evidenceFound: resData.data.explanation || "Evidence found",
+          aiExplanation: resData.data.explanation,
+          sourceCitations: (resData.data.citations || []).map((s: any) => s.url || s.title || s)
+        });
+        setStep("result");
       } else {
-        throw new Error(data.message || "Invalid response format from server.")
+        throw new Error(resData.error || "Invalid response format from server.")
       }
       
-    } catch (error: unknown) {
+    } catch (error: any) {
+      clearInterval(stageInterval);
       console.error("API error:", error)
-      alert(error instanceof Error ? error.message : "An unknown error occurred")
+      setIsError(true)
+      setErrorMessage(error instanceof Error ? error.message : "An unknown error occurred")
       setStep("input")
     }
   }
@@ -181,13 +166,32 @@ export default function VerifyPage() {
                   </div>
                 )}
                 
-                <Button 
-                    onClick={handleVerify} 
-                    className="mt-6 rounded-full px-8 py-6 text-lg w-full bg-slate-900 hover:bg-slate-800"
-                    disabled={inputType === "media" ? !selectedFile : !textContent.trim()}
-                >
-                    Run Forensic Verification
-                </Button>
+                {/* Non-intrusive Error Banner */}
+                 {isError && (
+                   <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-800 text-left">
+                     <svg className="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                     </svg>
+                     <div className="flex-1 text-xs">
+                       <span className="font-bold block mb-1">Verification Failed</span>
+                       <span className="font-medium text-red-600">{errorMessage}</span>
+                       <button 
+                         onClick={handleVerify} 
+                         className="mt-3 block font-bold text-red-800 hover:text-red-900 border border-red-200 bg-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition-colors cursor-pointer"
+                       >
+                         Retry Verification
+                       </button>
+                     </div>
+                   </div>
+                 )}
+                 
+                 <Button 
+                     onClick={handleVerify} 
+                     className="mt-6 rounded-full px-8 py-6 text-lg w-full bg-slate-900 hover:bg-slate-800"
+                     disabled={inputType === "media" ? !selectedFile : !textContent.trim()}
+                 >
+                     Run Forensic Verification
+                 </Button>
               </div>
             </Card>
           </motion.div>

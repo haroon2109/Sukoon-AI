@@ -194,9 +194,47 @@ class OmniProcessor:
         return f"Simulated Omni Output: Processed prompt '{prompt}' alongside {mods_str} successfully. Fake news likelihood: low."
 
 
-whisper_engine = WhisperSTT()
-vision_engine = VisionLanguageModel()
-ocr_engine = OCREngine()
-video_analyzer = VideoFrameAnalyzer(vision_engine)
-omni_engine = OmniProcessor()
+# Lazy singletons — instantiated on first use to avoid blocking server startup
+# and to avoid crashing when optional dependencies (OpenAI, BLIP) are missing.
+_whisper_engine = None
+_vision_engine = None
+_ocr_engine = None
+_video_analyzer = None
+_omni_engine = None
 
+def get_whisper_engine() -> WhisperSTT:
+    global _whisper_engine
+    if _whisper_engine is None:
+        _whisper_engine = WhisperSTT()
+    return _whisper_engine
+
+def get_vision_engine() -> VisionLanguageModel:
+    global _vision_engine
+    if _vision_engine is None:
+        _vision_engine = VisionLanguageModel()
+    return _vision_engine
+
+def get_ocr_engine() -> OCREngine:
+    global _ocr_engine
+    if _ocr_engine is None:
+        _ocr_engine = OCREngine()
+    return _ocr_engine
+
+def get_video_analyzer() -> VideoFrameAnalyzer:
+    global _video_analyzer
+    if _video_analyzer is None:
+        _video_analyzer = VideoFrameAnalyzer(get_vision_engine())
+    return _video_analyzer
+
+def get_omni_engine() -> OmniProcessor:
+    global _omni_engine
+    if _omni_engine is None:
+        _omni_engine = OmniProcessor()
+    return _omni_engine
+
+# Backwards-compatible aliases (use the lazy getters above in new code)
+whisper_engine = property(get_whisper_engine)
+vision_engine = property(get_vision_engine)
+ocr_engine = property(get_ocr_engine)
+video_analyzer = property(get_video_analyzer)
+omni_engine = property(get_omni_engine)

@@ -1,5 +1,29 @@
-from celery import Celery
+from celery import Celery, Task
 from app.core.config import settings
+from app.db.session import SessionLocal
+
+class DatabaseTask(Task):
+    """
+    A Celery Task base class that safely handles SQLAlchemy session life cycles.
+    Provides a shared thread-local session and automatically closes it upon task completion.
+    """
+    _db = None
+
+    @property
+    def db(self):
+        if self._db is None:
+            self._db = SessionLocal()
+        return self._db
+
+    def after_return(self, status, retval, task_id, args, kwargs, einfo):
+        if self._db is not None:
+            try:
+                self._db.close()
+            except Exception as e:
+                import logging
+                logging.getLogger("celery").error(f"Error closing DB session in task after_return: {e}")
+            finally:
+                self._db = None
 
 # Initialize Celery app with SQLite broker and backend for lightweight Cloud Run deployment
 celery_app = Celery(

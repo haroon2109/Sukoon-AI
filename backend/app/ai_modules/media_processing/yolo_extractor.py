@@ -29,6 +29,18 @@ class YOLOExtractor:
         if not os.path.exists(media_path):
             return {"error": f"File not found: {media_path}"}
             
+        # Defensive Shape and Corruption Validation Guard
+        try:
+            ext = os.path.splitext(media_path)[1].lower()
+            if ext in [".jpg", ".jpeg", ".png", ".webp", ".bmp"]:
+                import cv2
+                img = cv2.imread(media_path)
+                if img is None or img.size == 0 or len(img.shape) < 2:
+                    print(f"Defensive Guard: YOLOExtractor received empty or corrupted image array: {media_path}")
+                    return {"detected_objects": {}, "context_labels": [], "error": "Corrupted or empty image canvas"}
+        except Exception:
+            pass
+            
         results_data = {"detected_objects": {}, "context_labels": []}
         try:
             # The ultralytics predict method handles both images and videos

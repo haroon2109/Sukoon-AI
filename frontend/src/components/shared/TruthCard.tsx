@@ -90,7 +90,7 @@ export function TruthCard({
   sourceCitations,
 }: TruthCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
-  const theme = themeConfig[verdict]
+  const theme = themeConfig[verdict] ?? themeConfig["⚪ Unable to Verify"]
 
   const handleDownload = () => {
     if (cardRef.current === null) return

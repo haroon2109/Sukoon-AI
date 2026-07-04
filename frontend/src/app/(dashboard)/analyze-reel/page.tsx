@@ -3,7 +3,7 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
 import { Sparkles, Type, UploadCloud, Link as LinkIcon, MoreVertical, Play, FileText, CheckCircle2, Loader2, Lightbulb, ScanSearch, ShieldAlert, ShieldCheck, Network, Database, Search } from "lucide-react"
-import { fetchWithAuth } from "@/lib/api"
+import { fetchWithAuth, API_BASE_URL } from "@/lib/api"
 import Cookies from 'js-cookie'
 
 const TIPS = [
@@ -36,6 +36,8 @@ export default function AnalyzeContent() {
   const [resultData, setResultData] = useState<any>(null)
   const [activeTab, setActiveTab] = useState("text")
   const [tipIndex, setTipIndex] = useState(0)
+  const [isError, setIsError] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -47,106 +49,90 @@ export default function AnalyzeContent() {
   const STAGES = [
     "Parsing payload...",
     "Extracting claims via LLM...",
-    "Querying Qdrant for known facts...",
+    "Querying search grounding for verified facts...",
     "Synthesizing Peace Message...",
     "Verification complete. Generating Truth Card."
   ]
 
   const handleAnalyze = async () => {
-    if (!inputText.trim()) return
+    if (activeTab !== "media" && !inputText.trim()) return
+    if (activeTab === "media" && !selectedFile) return
+    
     setIsAnalyzing(true)
+    setIsError(false)
+    setErrorMessage("")
     setAnalysisStep(0)
     setShowNewResult(false)
     setResultData(null)
 
+    // Simulate checklist progression on timer to keep UI engaging
+    const stageInterval = setInterval(() => {
+      setAnalysisStep(prev => {
+        if (prev < 3) return prev + 1;
+        return prev;
+      });
+    }, 2000);
+
     try {
-      // Reset states for analysis
-      setAnalysisStep(0);
-      
       let response;
       if (activeTab === "media" && selectedFile) {
           const formData = new FormData()
           formData.append("file", selectedFile)
+          if (inputText) {
+              formData.append("content", inputText)
+          }
           
-          response = await fetchWithAuth(`http://127.0.0.1:8000/api/v1/verify/media`, {
+          response = await fetch(`/api/analyze`, {
               method: "POST",
               body: formData
           })
-      } else if (activeTab === "link") {
-          response = await fetchWithAuth(`http://127.0.0.1:8000/api/v1/verify/url`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ url: inputText })
-          })
       } else {
-          response = await fetchWithAuth(`http://127.0.0.1:8000/api/v1/verify/text`, {
+          response = await fetch(`/api/analyze`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ content: inputText })
           })
       }
 
+      clearInterval(stageInterval);
+
       if (!response.ok) {
-          throw new Error("Failed to start verification process")
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to process content analysis request")
       }
       
-      const data = await response.json()
+      const resData = await response.json()
       
-      if (data.status === "processing" && data.task_id) {
-          // Connect to WebSocket
-          const token = Cookies.get("sukoon_token") || "";
-          const wsUrl = `ws://127.0.0.1:8000/api/v1/verify/ws/${data.task_id}?token=${token}`;
-          const ws = new WebSocket(wsUrl);
+      if (resData.success && resData.data) {
+          setAnalysisStep(4);
           
-          ws.onmessage = (event) => {
-              const msg = JSON.parse(event.data);
-              
-              if (msg.step === "ingestion") setAnalysisStep(0);
-              else if (msg.step === "extraction") setAnalysisStep(1);
-              else if (msg.step === "vector_search") setAnalysisStep(2);
-              else if (msg.step === "web_search") setAnalysisStep(2);
-              else if (msg.step === "synthesis") setAnalysisStep(3);
-              else if (msg.step === "completed") {
-                  setAnalysisStep(4);
-                  
-                  setTimeout(() => {
-                      setResultData({
-                        verdict: msg.data.verdict,
-                        confidenceScore: msg.data.confidenceScore,
-                        claimSummary: msg.data.claimSummary || inputText,
-                        actualFacts: msg.data.actualFacts,
-                        sources: (msg.data.sourceCitations || []).map((s: any) => ({ name: s.url || s.title || s, url: s.url || "#" })),
-                        aiDeepfake: false
-                      });
-                      setIsAnalyzing(false);
-                      setShowNewResult(true);
-                      setInputText("");
-                      setSelectedFile(null);
-                  }, 500);
-              }
-          };
-          
-          ws.onerror = (error) => {
-              console.error("WebSocket error:", error);
+          setTimeout(() => {
+              setResultData({
+                verdict: resData.data.verdict,
+                confidenceScore: resData.data.confidenceScore,
+                claimSummary: inputText || (selectedFile ? selectedFile.name : "Uploaded media content"),
+                evidenceFound: resData.data.explanation || "Analysis complete.",
+                actualFacts: resData.data.explanation,
+                aiExplanation: resData.data.explanation || "",
+                sourceCitations: (resData.data.citations || []).map((s: any) => s.url || s.title || s),
+                sources: (resData.data.citations || []).map((s: any) => ({ name: s.title || s.url || s, url: s.url || "#" })),
+                aiDeepfake: false
+              });
               setIsAnalyzing(false);
-              alert("Real-time verification disconnected.");
-          };
-          
-          ws.onclose = () => {
-              // The socket closes when completed, if we haven't completed, it's an error
-              if (isAnalyzing) {
-                  console.log("WebSocket closed prematurely");
-              }
-          };
-          
+              setShowNewResult(true);
+              setInputText("");
+              setSelectedFile(null);
+          }, 500);
       } else {
-          throw new Error(data.message || "Unknown error")
+          throw new Error(resData.error || "Unknown analysis error")
       }
 
-    } catch (error) {
+    } catch (error: any) {
+      clearInterval(stageInterval);
       console.error(error);
       setIsAnalyzing(false);
-      alert("Failed to analyze content. Please try again.")
+      setIsError(true);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to analyze content. Please try again.");
     }
   }
 
@@ -239,66 +225,83 @@ export default function AnalyzeContent() {
                         </>
                       )}
                    </div>
+                   
+                   {/* Non-intrusive Error Banner */}
+                   {isError && (
+                     <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-800">
+                       <ShieldAlert className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                       <div className="flex-1 text-xs">
+                         <span className="font-bold block mb-1">Analysis Failed</span>
+                         <span className="font-medium text-red-600">{errorMessage}</span>
+                         <button 
+                           onClick={handleAnalyze} 
+                           className="mt-3 block font-bold text-red-800 hover:text-red-900 border border-red-200 bg-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-50 transition-colors cursor-pointer"
+                         >
+                           Retry Analysis
+                         </button>
+                       </div>
+                     </div>
+                   )}
                 </div>
 
                 {/* Bottom Buttons or Loading State */}
                  {isAnalyzing ? (
-                   <div className="px-8 py-8 flex flex-col md:flex-row gap-8 border-t border-slate-50 mt-auto bg-emerald-50 rounded-b-2xl min-h-[160px] relative overflow-hidden text-emerald-800 font-mono">
-                      {/* Scanning Background Effect */}
-                      <motion.div 
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-100/50 to-transparent w-[200%]"
-                        animate={{ x: ["-100%", "50%"] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                      />
-                      
-                      {/* Multi-Stage Checklist */}
-                      <div className="flex-1 space-y-3 z-10 relative">
-                         <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-4 font-sans font-bold flex items-center gap-2">
-                            <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
-                            Cognitive Processing Engine
-                         </div>
-                         {STAGES.map((stage, idx) => (
-                            <div key={idx} className={`flex items-center gap-3 text-xs transition-opacity duration-300 ${analysisStep === idx ? 'opacity-100 font-bold' : analysisStep > idx ? 'opacity-70' : 'opacity-40'}`}>
-                               <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${analysisStep > idx ? 'bg-emerald-500 border-emerald-500' : analysisStep === idx ? 'border-emerald-600 animate-pulse' : 'border-slate-300'}`}>
-                                  {analysisStep > idx ? <CheckCircle2 className="w-3 h-3 text-white" /> : analysisStep === idx ? <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full" /> : null}
-                               </div>
-                               <span className={analysisStep === idx ? 'text-emerald-700 font-bold' : analysisStep > idx ? 'text-emerald-600' : 'text-slate-500'}>{stage}</span>
-                            </div>
-                         ))}
-                      </div>
+                    <div className="px-8 py-8 flex flex-col md:flex-row gap-8 border-t border-slate-50 mt-auto bg-emerald-50 rounded-b-2xl min-h-[160px] relative overflow-hidden text-emerald-800 font-mono">
+                       {/* Scanning Background Effect */}
+                       <motion.div 
+                         className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-100/50 to-transparent w-[200%]"
+                         animate={{ x: ["-100%", "50%"] }}
+                         transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                       />
+                       
+                       {/* Multi-Stage Checklist */}
+                       <div className="flex-1 space-y-3 z-10 relative">
+                          <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-4 font-sans font-bold flex items-center gap-2">
+                             <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
+                             Cognitive Processing Engine
+                          </div>
+                          {STAGES.map((stage, idx) => (
+                             <div key={idx} className={`flex items-center gap-3 text-xs transition-opacity duration-300 ${analysisStep === idx ? 'opacity-100 font-bold' : analysisStep > idx ? 'opacity-70' : 'opacity-40'}`}>
+                                <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${analysisStep > idx ? 'bg-emerald-500 border-emerald-500' : analysisStep === idx ? 'border-emerald-600 animate-pulse' : 'border-slate-300'}`}>
+                                   {analysisStep > idx ? <CheckCircle2 className="w-3 h-3 text-white" /> : analysisStep === idx ? <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full" /> : null}
+                                </div>
+                                <span className={analysisStep === idx ? 'text-emerald-700 font-bold' : analysisStep > idx ? 'text-emerald-600' : 'text-slate-500'}>{stage}</span>
+                             </div>
+                          ))}
+                       </div>
 
-                      {/* Entity Extraction HUD */}
-                      <div className="w-full md:w-[280px] bg-white/60 rounded-xl border border-emerald-100/80 p-4 z-10 relative text-[10px] space-y-2 shadow-sm">
-                         <div className="uppercase tracking-widest text-emerald-800 mb-2 font-bold font-sans">Live Extraction</div>
-                         {analysisStep >= 0 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Search className="w-3 h-3 text-emerald-600"/> <span className="text-slate-700 font-medium">Parsing structure... OK</span></motion.div>}
-                         {analysisStep >= 1 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Type className="w-3 h-3 text-amber-500"/> <span className="text-slate-700 font-medium">Named Entity: [detected]</span></motion.div>}
-                         {analysisStep >= 2 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Database className="w-3 h-3 text-blue-500"/> <span className="text-slate-700 font-medium">Cross-ref Qdrant... MATCH</span></motion.div>}
-                         {analysisStep >= 3 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Network className="w-3 h-3 text-purple-500"/> <span className="text-slate-700 font-medium">Synthesizing output...</span></motion.div>}
-                      </div>
-                   </div>
-                ) : (
-                   <div className="px-6 pb-6 pt-2 flex justify-between items-center">
-                      <button 
-                        onClick={handleTryExample}
-                        className="flex items-center gap-2 text-emerald-600 font-bold text-sm px-5 py-2.5 rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-colors shadow-sm"
-                      >
-                         <Lightbulb className="w-4 h-4" /> Try an Example
-                      </button>
-                      <div className="relative group">
-                        {inputText.trim() && !isAnalyzing && (
-                          <div className="absolute -inset-0.5 bg-emerald-500 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
-                        )}
-                        <button 
-                          onClick={handleAnalyze}
-                          disabled={(!inputText.trim() && !selectedFile)}
-                          className="relative flex items-center gap-2 bg-[#15803d] hover:bg-[#166534] disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm"
-                        >
-                           <ScanSearch className="w-4 h-4" /> Analyze Now
-                        </button>
-                      </div>
-                   </div>
-                )}
-             </div>
+                       {/* Entity Extraction HUD */}
+                       <div className="w-full md:w-[280px] bg-white/60 rounded-xl border border-emerald-100/80 p-4 z-10 relative text-[10px] space-y-2 shadow-sm">
+                          <div className="uppercase tracking-widest text-emerald-800 mb-2 font-bold font-sans">Live Extraction</div>
+                          {analysisStep >= 0 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Search className="w-3 h-3 text-emerald-600"/> <span className="text-slate-700 font-medium">Parsing structure... OK</span></motion.div>}
+                          {analysisStep >= 1 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Type className="w-3 h-3 text-amber-500"/> <span className="text-slate-700 font-medium">Named Entity: [detected]</span></motion.div>}
+                          {analysisStep >= 2 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Database className="w-3 h-3 text-blue-500"/> <span className="text-slate-700 font-medium">Cross-ref Search... MATCH</span></motion.div>}
+                          {analysisStep >= 3 && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center gap-2"><Network className="w-3 h-3 text-purple-500"/> <span className="text-slate-700 font-medium">Synthesizing output...</span></motion.div>}
+                       </div>
+                    </div>
+                 ) : (
+                    <div className="px-6 pb-6 pt-2 flex justify-between items-center">
+                       <button 
+                         onClick={handleTryExample}
+                         className="flex items-center gap-2 text-emerald-600 font-bold text-sm px-5 py-2.5 rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-colors shadow-sm"
+                       >
+                          <Lightbulb className="w-4 h-4" /> Try an Example
+                       </button>
+                       <div className="relative group">
+                         {(inputText.trim() || selectedFile) && !isAnalyzing && (
+                           <div className="absolute -inset-0.5 bg-emerald-500 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+                         )}
+                         <button 
+                           onClick={handleAnalyze}
+                           disabled={(!inputText.trim() && !selectedFile)}
+                           className="relative flex items-center gap-2 bg-[#15803d] hover:bg-[#166534] disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm"
+                         >
+                            <ScanSearch className="w-4 h-4" /> Analyze Now
+                         </button>
+                       </div>
+                    </div>
+                 )}
+              </div>
              
              {/* Recent Analyses */}
              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">

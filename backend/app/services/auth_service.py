@@ -29,8 +29,17 @@ class AuthService:
         )
         
         security_logger.info("New user registered", extra={"custom_data": {"email": user.email, "user_id": user.id}})
-        # Mock sending email
-        print(f"MOCK EMAIL: Please verify your email by clicking: /api/v1/auth/verify-email?token={verification_token}")
+        
+        from ..core.config import settings
+        if settings.ENVIRONMENT == "development":
+            # Auto-verify in development so new users can immediately log in
+            user.is_verified = True
+            db.commit()
+            security_logger.info("Auto-verified user in development mode", extra={"custom_data": {"email": user.email}})
+        else:
+            # Production: send real verification email
+            # TODO: Replace with SendGrid/Resend call
+            print(f"MOCK EMAIL: Verify your email: /api/v1/auth/verify-email?token={verification_token}")
         
         return user
         

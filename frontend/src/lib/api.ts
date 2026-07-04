@@ -1,10 +1,12 @@
 import Cookies from 'js-cookie'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sukoon-backend-62218171814.us-central1.run.app'
 
 interface FetchOptions extends RequestInit {
   headers?: Record<string, string>
 }
+
+let isRedirectingToLogin = false;
 
 export const fetchWithAuth = async (endpoint: string, options: FetchOptions = {}) => {
   const token = Cookies.get('sukoon_token')
@@ -20,15 +22,17 @@ export const fetchWithAuth = async (endpoint: string, options: FetchOptions = {}
     delete (headers as any)['Content-Type']
   }
 
-  // Format endpoint to ensure it doesn't duplicate the host if passed as a relative path
-  let url = endpoint
-  if (endpoint.startsWith('/api/') && !endpoint.includes('http')) {
-    // If it's a relative next.js API route that proxies to backend (like rewrites in next.config)
-    // we just use the relative endpoint
-    url = endpoint
-  } else if (endpoint.startsWith('/') && !endpoint.startsWith('/api')) {
-    // If it's a direct backend call
-    url = `${API_BASE_URL}${endpoint}`
+  // Format endpoint to ensure correct relative path routing and prevent nested route 404s
+  let url = endpoint;
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    url = endpoint;
+  } else {
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    if (cleanEndpoint.startsWith('/api/')) {
+      url = cleanEndpoint;
+    } else {
+      url = `${API_BASE_URL}${cleanEndpoint}`;
+    }
   }
 
   const response = await fetch(url, {
@@ -37,12 +41,21 @@ export const fetchWithAuth = async (endpoint: string, options: FetchOptions = {}
   })
 
   if (response.status === 401) {
-    // Token expired or invalid
-    Cookies.remove('sukoon_token')
-    
-    // Only redirect if we are in the browser
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login'
+    if (!isRedirectingToLogin) {
+      isRedirectingToLogin = true;
+      // Token expired or invalid
+      Cookies.remove('sukoon_token')
+      
+      // Only redirect if we are in the browser
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'
+      }
+    } else {
+      // Gracefully prevent duplicate redirect loops and layout flickering
+      return new Response(JSON.stringify({ error: "Session expired. Redirecting..." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
     }
   }
 

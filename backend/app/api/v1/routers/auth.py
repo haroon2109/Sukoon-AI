@@ -1,16 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ....domain.schemas.schemas import UserCreate, UserResponse, UserLogin, Token
 from ....services.auth_service import auth_service
 from ....api.dependencies.database import get_db
 from ....core.security import create_access_token
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from jose import jwt, JWTError
 from ....core.config import settings
 from ....core.rate_limit import limiter
 
 router = APIRouter()
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
 
 @router.post("/register", response_model=UserResponse)
 @limiter.limit("5/minute")
@@ -30,7 +33,7 @@ def login(request: Request, user_login: UserLogin, db: Session = Depends(get_db)
     if not user:
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     if not user.is_verified:
-        raise HTTPException(status_code=403, detail="Email not verified")
+        raise HTTPException(status_code=403, detail="Email not verified. Check your inbox or use /auth/resend-verification.")
         
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
@@ -47,10 +50,11 @@ def verify_email(token: str, db: Session = Depends(get_db)):
         if email is None or token_type != "verification":
             raise HTTPException(status_code=400, detail="Invalid token")
     except JWTError:
-        raise HTTPException(status_code=400, detail="Invalid token")
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
         
-    user = auth_service.verify_email(db, email=email)
-    return {"message": "Email verified successfully"}
+    auth_service.verify_email(db, email=email)
+    return {"message": "Email verified successfully. You may now log in."}
+
 @router.post("/forgot-password")
 @limiter.limit("3/minute")
 def forgot_password(request: Request, email: str, db: Session = Depends(get_db)):
@@ -59,11 +63,6 @@ def forgot_password(request: Request, email: str, db: Session = Depends(get_db))
     """
     auth_service.create_password_reset_token(db, email)
     return {"message": "If that email is registered, a password reset link has been sent."}
-
-from pydantic import BaseModel
-class PasswordResetConfirm(BaseModel):
-    token: str
-    new_password: str
 
 @router.post("/reset-password")
 @limiter.limit("3/minute")
