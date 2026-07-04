@@ -1,6 +1,7 @@
 import os
 import openai
 from PIL import Image
+from ...core.logger import api_logger
 
 try:
     import cv2
@@ -13,6 +14,12 @@ try:
     HAS_TRANSFORMERS = True
 except ImportError:
     HAS_TRANSFORMERS = False
+
+try:
+    import pytesseract
+    HAS_TESSERACT = True
+except ImportError:
+    HAS_TESSERACT = False
 
 class WhisperSTT:
     def __init__(self):
@@ -32,8 +39,8 @@ class WhisperSTT:
                 )
             return transcription.text
         except Exception as e:
-            print(f"Error transcribing audio with Whisper: {e}")
-            return ""
+            api_logger.error(f"Error transcribing audio with Whisper: {e}")
+            raise RuntimeError(f"Audio transcription failed: {e}")
 
 class VisionLanguageModel:
     def __init__(self):
@@ -47,7 +54,8 @@ class VisionLanguageModel:
                 self.processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
                 self.model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
             except Exception as e:
-                print(f"Error loading BLIP model: {e}")
+                api_logger.error(f"Error loading BLIP model: {e}")
+                raise RuntimeError(f"Failed to load vision model: {e}")
 
     def process_image(self, image_input, prompt: str = None) -> str:
         """
@@ -55,7 +63,7 @@ class VisionLanguageModel:
         Accepts either a file path (str) or a PIL.Image object.
         """
         if not self.processor or not self.model:
-            return "Vision model is not loaded (requires transformers & torch)."
+            raise RuntimeError("Vision model is not loaded (requires transformers & torch).")
         
         try:
             if isinstance(image_input, str):
@@ -63,7 +71,7 @@ class VisionLanguageModel:
             elif isinstance(image_input, Image.Image):
                 raw_image = image_input.convert('RGB')
             else:
-                return "Invalid image input type."
+                raise ValueError("Invalid image input type.")
                 
             if prompt:
                 inputs = self.processor(raw_image, prompt, return_tensors="pt")
@@ -73,15 +81,25 @@ class VisionLanguageModel:
             out = self.model.generate(**inputs, max_new_tokens=50)
             return self.processor.decode(out[0], skip_special_tokens=True)
         except Exception as e:
-            print(f"Error processing image with Vision Language Model: {e}")
-            return ""
+            api_logger.error(f"Error processing image with Vision Language Model: {e}")
+            raise RuntimeError(f"Image processing failed: {e}")
 
 class OCREngine:
     def extract_text(self, image_file_path: str) -> str:
         """
-        Simulates Tesseract OCR or Google Vision extraction from images/video frames.
+        Uses Tesseract OCR to extract text from images/video frames.
         """
-        return "Simulated OCR output: BREAKING NEWS - RIOTS"
+        if not HAS_TESSERACT:
+            api_logger.warning("pytesseract is not installed. Returning empty OCR string.")
+            return ""
+            
+        try:
+            image = Image.open(image_file_path)
+            extracted_text = pytesseract.image_to_string(image)
+            return extracted_text.strip()
+        except Exception as e:
+            api_logger.error(f"Error extracting text with OCR: {e}")
+            raise RuntimeError(f"OCR extraction failed: {e}")
 
 class VideoFrameAnalyzer:
     def __init__(self, vision_engine: VisionLanguageModel):

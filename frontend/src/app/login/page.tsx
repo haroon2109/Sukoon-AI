@@ -19,7 +19,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!identifier.trim() || !password.trim()) {
@@ -27,10 +27,39 @@ export default function LoginPage() {
       return
     }
 
-    // In a real app, this would be an API call to verify credentials.
-    // For now, we'll just log them in to the dashboard directly.
-    setError("")
-    router.push('/dashboard')
+    try {
+      // In next.config.ts, /api/ is rewritten to the backend URL, so we can use relative path
+      const res = await fetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: identifier.trim(),
+          password: password.trim()
+        })
+      })
+
+      const data = await res.json()
+      
+      if (!res.ok) {
+        setError(data.detail || "Invalid credentials.")
+        return
+      }
+
+      // Store token securely in cookie using dynamically imported js-cookie
+      const Cookies = (await import('js-cookie')).default
+      Cookies.set('sukoon_token', data.access_token, { 
+          expires: 7, 
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict'
+      })
+      
+      setError("")
+      router.push('/dashboard')
+    } catch (err) {
+      setError("An error occurred. Please try again.")
+    }
   }
 
   return (

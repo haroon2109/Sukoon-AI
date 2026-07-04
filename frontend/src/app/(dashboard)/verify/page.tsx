@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { UploadCloud, Link as LinkIcon, FileText, Loader2 } from "lucide-react"
+import { fetchWithAuth } from "@/lib/api"
 import { TruthCard } from "@/components/shared/TruthCard"
 import { motion, AnimatePresence } from "framer-motion"
 import { VerificationRecord } from "@/lib/mockData"
@@ -24,7 +25,6 @@ export default function VerifyPage() {
     setProcessingStage("Connecting to Sukoon AI backend...")
     
     try {
-      const baseUrl = process.env.NODE_ENV === "development" ? "http://127.0.0.1:8000" : "https://sukoon-backend-62218171814.us-central1.run.app";
       let response;
 
       if (inputType === "media") {
@@ -35,20 +35,25 @@ export default function VerifyPage() {
             formData.append("content", textContent)
         }
         
-        response = await fetch(`${baseUrl}/api/v1/verify/media`, {
+        response = await fetchWithAuth(`/api/v1/verify/media`, {
           method: "POST",
           body: formData
         })
+      } else if (inputType === "url") {
+        setProcessingStage("Extracting claims and retrieving RAG evidence...")
+        response = await fetchWithAuth(`/api/v1/verify/url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: textContent })
+        })
       } else {
         setProcessingStage("Extracting claims and retrieving RAG evidence...")
-        response = await fetch(`${baseUrl}/api/verify`, {
+        response = await fetchWithAuth(`/api/v1/verify/text`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: textContent })
         })
       }
-      
-      setProcessingStage("Analyzing reasoning and generating peace verdict...")
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -57,20 +62,47 @@ export default function VerifyPage() {
 
       const data = await response.json()
       
-      if (data.status === "success") {
-        // Map backend output to frontend TruthCard props
-        setResultData({
-          id: `v_${Date.now()}`,
-          verdict: data.data.verdict,
-          confidenceScore: data.data.confidence_score,
-          claimSummary: data.data.claimSummary || textContent,
-          evidenceFound: data.data.evidenceFound,
-          aiExplanation: data.data.aiExplanation || data.data.explanation,
-          sourceCitations: data.data.sourceCitations || []
-        })
-        setStep("result")
+      if (data.status === "processing" && data.task_id) {
+        setProcessingStage("Analyzing reasoning and generating peace verdict...")
+        // Poll for results
+        const maxAttempts = 30;
+        let attempt = 0;
+        
+        const pollInterval = setInterval(async () => {
+            attempt++;
+            try {
+                const pollRes = await fetchWithAuth(`/api/v1/${data.task_id}`);
+                if (pollRes.ok) {
+                    const pollData = await pollRes.json();
+                    if (pollData.status === "completed") {
+                        clearInterval(pollInterval);
+                        setResultData({
+                          id: pollData.request_id,
+                          verdict: pollData.verdict,
+                          confidenceScore: pollData.confidence_score,
+                          claimSummary: textContent,
+                          evidenceFound: true,
+                          aiExplanation: pollData.matched_context,
+                          sourceCitations: pollData.source_urls || []
+                        });
+                        setStep("result");
+                    } else if (pollData.status === "error" || pollData.status === "failed") {
+                        clearInterval(pollInterval);
+                        throw new Error(pollData.matched_context || "Verification failed during processing.");
+                    }
+                }
+            } catch (err) {
+                console.error("Polling error", err);
+            }
+            
+            if (attempt >= maxAttempts) {
+                clearInterval(pollInterval);
+                setStep("input");
+                alert("Verification timed out. Please check your history later.");
+            }
+        }, 2000);
       } else {
-        throw new Error(data.message)
+        throw new Error(data.message || "Invalid response format from server.")
       }
       
     } catch (error: unknown) {

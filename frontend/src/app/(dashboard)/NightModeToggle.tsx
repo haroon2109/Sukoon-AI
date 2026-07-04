@@ -36,16 +36,7 @@ export default function NightModeToggle() {
         {isDark ? <Moon className="w-5 h-5 text-emerald-500" /> : <Sun className="w-5 h-5" />}
       </button>
 
-      <style dangerouslySetInnerHTML={{__html: `
-        html.dark-theme { 
-          filter: invert(0.92) hue-rotate(180deg);
-        }
-        /* Un-invert images and videos so they look normal */
-        html.dark-theme img, 
-        html.dark-theme video { 
-          filter: invert(1) hue-rotate(180deg); 
-        }
-      `}} />
+
     </>
   )
 }

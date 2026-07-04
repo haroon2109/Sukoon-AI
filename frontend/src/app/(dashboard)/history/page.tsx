@@ -3,6 +3,7 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Calendar, Filter, Link as LinkIcon, MoreVertical, Play, ChevronDown, CheckCircle2, XCircle, AlertCircle, HelpCircle, BarChart3, Image as ImageIcon, Loader2 } from "lucide-react"
+import { fetchWithAuth } from "@/lib/api"
 
 interface HistoryItem {
   id: string;
@@ -30,7 +31,7 @@ export default function HistoryPage() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const response = await fetch("/api/v1/history")
+        const response = await fetchWithAuth("/api/v1/history")
         if (response.ok) {
           const data = await response.json()
           setHistoryItems(data || [])

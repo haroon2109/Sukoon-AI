@@ -1,11 +1,11 @@
 from celery import Celery
+from app.core.config import settings
 
-# Initialize Celery app with Redis broker and backend
-# These values would typically be loaded from app.core.config
+# Initialize Celery app with SQLite broker and backend for lightweight Cloud Run deployment
 celery_app = Celery(
     "sukoon_ai_tasks",
-    broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/1"
+    broker=settings.DATABASE_URL or "sqla+sqlite:///celery_broker.sqlite",
+    backend=settings.DATABASE_URL or "db+sqlite:///celery_backend.sqlite"
 )
 
 celery_app.conf.update(

@@ -22,6 +22,30 @@ class VerificationResponse(BaseModel):
     status: str
     message: str
 
+class TextVerificationRequest(BaseModel):
+    content: str
+
+@router.post("/text", response_model=VerificationResponse, status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("10/minute")
+async def submit_text_for_verification(
+    request: Request,
+    text_req: TextVerificationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    claim_in = ClaimCreate(raw_content=text_req.content)
+    verification = agentic_workflow_coordinator.ingest_payload(db, claim_in, current_user.id)
+    
+    # Trigger Celery Task
+    from app.workers.task_pipelines import process_claim_task
+    process_claim_task.delay(claim_type="text", content=text_req.content, verification_id=str(verification.id))
+    
+    return VerificationResponse(
+        task_id=str(verification.id),
+        status="processing",
+        message="Verification pipeline started. Connect to WebSocket /ws/{task_id} for updates."
+    )
+
 @router.post("/url", response_model=VerificationResponse, status_code=status.HTTP_202_ACCEPTED)
 @limiter.limit("10/minute")
 async def submit_url_for_verification(
@@ -31,9 +55,15 @@ async def submit_url_for_verification(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    task_id = "mock-uuid-1234-5678"
+    claim_in = ClaimCreate(raw_content=f"Please verify this URL: {url_req.url}")
+    verification = agentic_workflow_coordinator.ingest_payload(db, claim_in, current_user.id)
+    
+    # Trigger Celery Task
+    from app.workers.task_pipelines import process_claim_task
+    process_claim_task.delay(claim_type="url", content=url_req.url, verification_id=str(verification.id))
+    
     return VerificationResponse(
-        task_id=task_id,
+        task_id=str(verification.id),
         status="processing",
         message="Verification pipeline started. Poll the /results endpoint for updates."
     )
@@ -62,8 +92,20 @@ async def submit_media_for_verification(
             raise HTTPException(status_code=413, detail="File too large. Maximum size is 10MB.")
             
     await file.seek(0)
-    claim_in = ClaimCreate(raw_content=f"Uploaded media: {safe_filename}")
+    
+    # Save the file securely to disk
+    os.makedirs("uploads", exist_ok=True)
+    file_path = os.path.join("uploads", safe_filename)
+    with open(file_path, "wb") as f:
+        while chunk := await file.read(8192):
+            f.write(chunk)
+            
+    claim_in = ClaimCreate(raw_content=f"Uploaded media: {file_path}")
     verification = agentic_workflow_coordinator.ingest_payload(db, claim_in, current_user.id)
+    
+    # Trigger Celery Task
+    from app.workers.task_pipelines import dispatch_multimodal_pipeline
+    dispatch_multimodal_pipeline(file_path=file_path, verification_id=str(verification.id))
     
     return VerificationResponse(
         task_id=str(verification.id),

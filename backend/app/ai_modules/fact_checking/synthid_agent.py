@@ -8,9 +8,10 @@ class SynthIDAgent:
     Here, we append an invisible steganographic watermark and cryptographic signature to prove provenance.
     """
     def __init__(self):
+        from app.core.config import settings
         # Zero-width spaces used for steganographic watermarking
         self.invisible_watermark = "\u200B\u200C\u200D\uFEFF"
-        self.secret_key = "sukoon_ai_synthid_secret"
+        self.secret_key = settings.SECRET_KEY
 
     def apply_watermark(self, text: str) -> str:
         if not text:

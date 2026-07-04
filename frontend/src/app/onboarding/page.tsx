@@ -364,6 +364,7 @@ const translations: Record<string, Record<string, string>> = {
 export default function OnboardingPage() {
   const router = useRouter()
   const [fullName, setFullName] = useState("")
+  const [email, setEmail] = useState("")
   const [age, setAge] = useState("")
   const [mobile, setMobile] = useState("")
   const [city, setCity] = useState("")
@@ -372,18 +373,63 @@ export default function OnboardingPage() {
   const [error, setError] = useState("")
   const t = translations[language] || translations["English"]
 
-  const handleContinue = () => {
-    if (!fullName.trim() || !age.trim() || !mobile.trim() || !city.trim() || !password.trim()) {
+  const handleContinue = async () => {
+    if (!fullName.trim() || !email.trim() || !age.trim() || !mobile.trim() || !city.trim() || !password.trim()) {
       setError(t.errorMsg)
       return
     }
     setError("")
-    localStorage.setItem('sukoon_name', fullName.trim())
-    localStorage.setItem('sukoon_age', age.trim())
-    localStorage.setItem('sukoon_mobile', mobile.trim())
-    localStorage.setItem('sukoon_city', city.trim())
-    localStorage.setItem('sukoon_language', language)
-    router.push('/dashboard')
+    
+    try {
+      // 1. Register User
+      const regRes = await fetch("/api/v1/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password.trim(),
+          organization_name: fullName.trim()
+        })
+      })
+
+      if (!regRes.ok) {
+        const data = await regRes.json()
+        setError(data.detail || "Registration failed")
+        return
+      }
+
+      // 2. Login to get token
+      const loginRes = await fetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password.trim()
+        })
+      })
+
+      if (!loginRes.ok) {
+        setError("Login after registration failed")
+        return
+      }
+
+      const loginData = await loginRes.json()
+
+      // Store token securely in cookie
+      const Cookies = (await import('js-cookie')).default
+      Cookies.set('sukoon_token', loginData.access_token, { 
+          expires: 7, 
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict'
+      })
+
+      // Store safe preferences in localStorage
+      localStorage.setItem('sukoon_language', language)
+      
+      router.push('/dashboard')
+    } catch (err) {
+      setError("An error occurred during registration.")
+    }
   }
 
   return (
@@ -576,7 +622,7 @@ export default function OnboardingPage() {
                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                             <Mail className="w-4 h-4 text-slate-400" />
                          </div>
-                         <input type="email" placeholder={t.emailPl} className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-[12px] font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors" />
+                          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailPl} className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-[12px] font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors" />
                       </div>
                    </div>
                 </div>

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { ShieldCheck, ShieldAlert, Users, Target, ChevronDown, MoreVertical, Scan, Wind } from "lucide-react"
+import { fetchWithAuth } from "@/lib/api"
 import { motion, AnimatePresence } from "framer-motion"
 import { AnimatedCounter } from "@/components/AnimatedCounter"
 
@@ -74,8 +75,8 @@ export default function Dashboard() {
     const fetchDashboardData = async () => {
       try {
         const [statsRes, historyRes] = await Promise.all([
-          fetch(`/api/v1/dashboard/stats?days=${dateRange}`),
-          fetch("/api/v1/history")
+          fetchWithAuth(`/api/v1/dashboard/stats?days=${dateRange}`),
+          fetchWithAuth("/api/v1/history")
         ])
         if (statsRes.ok) setStats(await statsRes.json())
         if (historyRes.ok) {

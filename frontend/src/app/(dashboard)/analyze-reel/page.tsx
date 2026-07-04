@@ -3,6 +3,8 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
 import { Sparkles, Type, UploadCloud, Link as LinkIcon, MoreVertical, Play, FileText, CheckCircle2, Loader2, Lightbulb, ScanSearch, ShieldAlert, ShieldCheck, Network, Database, Search } from "lucide-react"
+import { fetchWithAuth } from "@/lib/api"
+import Cookies from 'js-cookie'
 
 const TIPS = [
   {
@@ -27,6 +29,7 @@ const TIPS = [
 
 export default function AnalyzeContent() {
   const [inputText, setInputText] = useState("")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisStep, setAnalysisStep] = useState(0)
   const [showNewResult, setShowNewResult] = useState(false)
@@ -57,64 +60,87 @@ export default function AnalyzeContent() {
     setResultData(null)
 
     try {
+      // Reset states for analysis
       setAnalysisStep(0);
       
-      const baseUrl = process.env.NODE_ENV === "development" ? "http://127.0.0.1:8000" : "https://sukoon-backend-62218171814.us-central1.run.app";
-      
-      // We simulate stages visually while the request is in flight
-      const stageInterval = setInterval(() => {
-          setAnalysisStep(prev => prev < 3 ? prev + 1 : 3)
-      }, 1500)
-
       let response;
-      if (activeTab === "media") {
-          // Note: In a full implementation, you'd want to attach a file input ref here.
-          // For now, we fallback to text if they just clicked without a file.
-          response = await fetch(`${baseUrl}/api/verify`, {
+      if (activeTab === "media" && selectedFile) {
+          const formData = new FormData()
+          formData.append("file", selectedFile)
+          
+          response = await fetchWithAuth(`http://127.0.0.1:8000/api/v1/verify/media`, {
+              method: "POST",
+              body: formData
+          })
+      } else if (activeTab === "link") {
+          response = await fetchWithAuth(`http://127.0.0.1:8000/api/v1/verify/url`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ content: inputText })
+              body: JSON.stringify({ url: inputText })
           })
       } else {
-          response = await fetch(`${baseUrl}/api/verify`, {
+          response = await fetchWithAuth(`http://127.0.0.1:8000/api/v1/verify/text`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ content: inputText })
           })
       }
 
-      clearInterval(stageInterval)
-      setAnalysisStep(4)
-      
       if (!response.ok) {
-          throw new Error("Verification failed")
+          throw new Error("Failed to start verification process")
       }
       
       const data = await response.json()
       
-      if (data.status === "success") {
-          const rawVerdict = data.data.verdict || "⚪ Unable to Verify";
-          let simpleVerdict = "unable to verify";
-          const lowerVerdict = rawVerdict.toLowerCase();
-          if (lowerVerdict.includes("verified") || lowerVerdict === "true") simpleVerdict = "true";
-          if (lowerVerdict.includes("false")) simpleVerdict = "false";
-          if (lowerVerdict.includes("misleading") || lowerVerdict.includes("context")) simpleVerdict = "misleading";
+      if (data.status === "processing" && data.task_id) {
+          // Connect to WebSocket
+          const token = Cookies.get("sukoon_token") || "";
+          const wsUrl = `ws://127.0.0.1:8000/api/v1/verify/ws/${data.task_id}?token=${token}`;
+          const ws = new WebSocket(wsUrl);
           
-          setTimeout(() => {
-              setResultData({
-                verdict: simpleVerdict,
-                confidenceScore: data.data.confidence_score,
-                claimSummary: data.data.claimSummary || inputText,
-                actualFacts: data.data.aiExplanation || data.data.explanation || "No explanation.",
-                sources: (data.data.sourceCitations || []).map((s: string) => ({ name: s, url: "#" })),
-                aiDeepfake: false
-              });
+          ws.onmessage = (event) => {
+              const msg = JSON.parse(event.data);
+              
+              if (msg.step === "ingestion") setAnalysisStep(0);
+              else if (msg.step === "extraction") setAnalysisStep(1);
+              else if (msg.step === "vector_search") setAnalysisStep(2);
+              else if (msg.step === "web_search") setAnalysisStep(2);
+              else if (msg.step === "synthesis") setAnalysisStep(3);
+              else if (msg.step === "completed") {
+                  setAnalysisStep(4);
+                  
+                  setTimeout(() => {
+                      setResultData({
+                        verdict: msg.data.verdict,
+                        confidenceScore: msg.data.confidenceScore,
+                        claimSummary: msg.data.claimSummary || inputText,
+                        actualFacts: msg.data.actualFacts,
+                        sources: (msg.data.sourceCitations || []).map((s: any) => ({ name: s.url || s.title || s, url: s.url || "#" })),
+                        aiDeepfake: false
+                      });
+                      setIsAnalyzing(false);
+                      setShowNewResult(true);
+                      setInputText("");
+                      setSelectedFile(null);
+                  }, 500);
+              }
+          };
+          
+          ws.onerror = (error) => {
+              console.error("WebSocket error:", error);
               setIsAnalyzing(false);
-              setShowNewResult(true);
-              setInputText("");
-          }, 1000);
+              alert("Real-time verification disconnected.");
+          };
+          
+          ws.onclose = () => {
+              // The socket closes when completed, if we haven't completed, it's an error
+              if (isAnalyzing) {
+                  console.log("WebSocket closed prematurely");
+              }
+          };
+          
       } else {
-          throw new Error(data.message)
+          throw new Error(data.message || "Unknown error")
       }
 
     } catch (error) {
@@ -189,7 +215,14 @@ export default function AnalyzeContent() {
                           <UploadCloud className="w-10 h-10 text-slate-400 mb-3" />
                           <p className="text-sm font-semibold text-slate-700">Drag and drop media files here</p>
                           <p className="text-xs text-slate-500 mt-1">or click to browse from your computer</p>
-                          <input type="file" aria-label="Upload media" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                          {selectedFile && <p className="text-xs font-bold text-emerald-600 mt-3 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">Selected: {selectedFile.name}</p>}
+                          <input 
+                            type="file" 
+                            accept="image/jpeg, image/png, audio/mpeg, video/mp4"
+                            onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+                            aria-label="Upload media" 
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
+                          />
                         </div>
                       ) : (
                         <>
@@ -257,7 +290,7 @@ export default function AnalyzeContent() {
                         )}
                         <button 
                           onClick={handleAnalyze}
-                          disabled={!inputText.trim()}
+                          disabled={(!inputText.trim() && !selectedFile)}
                           className="relative flex items-center gap-2 bg-[#15803d] hover:bg-[#166534] disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm"
                         >
                            <ScanSearch className="w-4 h-4" /> Analyze Now

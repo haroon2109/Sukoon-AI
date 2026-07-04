@@ -161,3 +161,14 @@ body { top: 0 !important; }
 #goog-gt-tt, .goog-te-balloon-frame { display: none !important; }
 .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
 
+
+
+/* Dark Mode Support */
+html.dark-theme {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
+html.dark-theme img,
+html.dark-theme video {
+  filter: invert(1) hue-rotate(180deg);
+}

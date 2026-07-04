@@ -24,11 +24,12 @@ export default function UserProfile() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem('sukoon_token')
+  const handleLogout = async () => {
+    const Cookies = (await import('js-cookie')).default
+    Cookies.remove('sukoon_token')
     localStorage.removeItem('sukoon_name')
     localStorage.removeItem('sukoon_email')
-    window.location.href = "/"
+    window.location.href = "/login"
   }
 
   return (

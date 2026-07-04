@@ -40,8 +40,10 @@ export default function SettingsPage() {
     window.location.reload()
   }
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+      const Cookies = (await import('js-cookie')).default
+      Cookies.remove('sukoon_token')
       localStorage.clear()
       window.location.href = '/'
     }

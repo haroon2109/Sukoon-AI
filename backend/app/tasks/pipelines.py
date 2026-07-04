@@ -1,107 +1,70 @@
+import logging
 from app.core.celery_app import celery_app
-from celery import group, chain, chord
-import time
+from app.services.scraper import scrape_url
+from app.ai_modules.embeddings import generate_text_embedding
+from app.db.supabase_client import supabase_client
 
-# ---------------------------------------------------------
-# STAGE 1: Media Analysis (Fan-Out)
-# ---------------------------------------------------------
+logger = logging.getLogger(__name__)
 
-@celery_app.task(bind=True)
-def analyze_text(self, payload: dict):
-    """Text Analyzer: Hate Speech, Claim Detection, Toxicity"""
-    time.sleep(1) # Mock processing time
-    return {"text_analysis": "clean", "detected_claims": ["RBI banned notes"]}
-
-@celery_app.task(bind=True)
-def analyze_audio(self, payload: dict):
-    """Audio Analyzer: Whisper STT, Translation, Dialect Cleanup"""
-    time.sleep(2)
-    return {"transcript": "No audio detected", "language": "en"}
-
-@celery_app.task(bind=True)
-def analyze_video(self, payload: dict):
-    """Image/Video AI: OCR, Deepfake Check, Frame Analysis"""
-    time.sleep(3)
-    return {"deepfake_probability": 0.02, "ocr_text": []}
-
-# ---------------------------------------------------------
-# STAGE 2: Claim Extraction
-# ---------------------------------------------------------
-
-@celery_app.task(bind=True)
-def extract_claims(self, analysis_results: list, payload: dict):
-    """Claim Extraction Agent: Aggregates fan-out results and extracts the core claim."""
-    # analysis_results will contain outputs from text, audio, and video tasks
-    core_claim = "RBI has issued new Rs 1000 notes."
-    return {"core_claim": core_claim, "context": analysis_results}
-
-# ---------------------------------------------------------
-# STAGE 3: RAG Verification Hub
-# ---------------------------------------------------------
-
-@celery_app.task(bind=True)
-def verify_rag_sources(self, extraction_result: dict):
+@celery_app.task(name="pipelines.verify_content_stream", bind=True, max_retries=3)
+def verify_content_stream(self, target_url: str) -> dict:
     """
-    RAG Verification Hub: Queries vector database populated by
-    PIB Fact Check, AltNews, and BoomLive.
+    Asynchronous Celery task that coordinates live scraping, semantic 
+    embedding generation via Gemini, and RAG verification lookup.
     """
-    time.sleep(1.5)
-    core_claim = extraction_result["core_claim"]
+    logger.info(f"Starting real-time evaluation pipeline for job {self.request.id}")
     
-    # Mock RAG Hit
-    rag_evidence = {
-        "source": "PIB Fact Check",
-        "match_confidence": 0.99,
-        "evidence_text": "The RBI has not issued new Rs 1000 notes. This is a fake forward."
-    }
-    
-    return {"claim": core_claim, "rag_evidence": rag_evidence}
+    try:
+        # Phase 1: Real-time Scraping & Content Extraction
+        logger.info(f"Scraping content metadata from source: {target_url}")
+        
+        raw_text = scrape_url(target_url)
+        
+        if not raw_text or len(raw_text.strip()) < 10:
+            return {
+                "status": "SKIPPED",
+                "reason": "Insufficient text content extracted from source to perform truth valuation."
+            }
 
-# ---------------------------------------------------------
-# STAGE 4: Synthesis & Output
-# ---------------------------------------------------------
+        # Phase 2: Real Embedding Generation via text-embedding-004 / gemini-embedding-001
+        logger.info("Passing payload to Gemini Embedding API context...")
+        # Generates a 768-dimensional Matryoshka vector optimized for database storage
+        query_vector = generate_text_embedding(text=raw_text, dimensions=768)
 
-@celery_app.task(bind=True)
-def generate_truth_card(self, rag_result: dict):
-    """
-    Sukoon LLM Agent & Truth Card Generator
-    Generates the final JSON response sent to the Platform Response Layer.
-    """
-    time.sleep(1)
-    return {
-        "verdict": "false",
-        "confidenceScore": 99,
-        "claimSummary": rag_result["claim"],
-        "actualFacts": rag_result["rag_evidence"]["evidence_text"],
-        "sourceCitations": [rag_result["rag_evidence"]["source"]],
-        "peaceMessage": "Your money is safe. Please rely on official RBI announcements."
-    }
+        # Phase 3: Real Database RAG Match Lookup via pgvector
+        logger.info("Executing semantic vector match across verified truth indices...")
+        
+        # Invoke your PostgreSQL stored procedure via the Supabase client
+        # Matches the vector input to catch historical matches or known debunked articles
+        db_response = supabase_client.rpc(
+            "match_verified_claims",
+            {
+                "query_embedding": query_vector,
+                "match_threshold": 0.82,  # Confidence rating score minimum
+                "match_count": 3          # Return top 3 historical matches
+            }
+        ).execute()
+        
+        rag_hits = db_response.data if hasattr(db_response, 'data') else []
 
-# ---------------------------------------------------------
-# MASTER PIPELINE ORCHESTRATOR
-# ---------------------------------------------------------
+        # Phase 4: Construct Decision Intelligence State Payload
+        is_misinformation_match = len(rag_hits) > 0
+        highest_confidence = rag_hits[0].get("similarity", 0.0) if is_misinformation_match else 0.0
+        
+        logger.info(f"Pipeline verification finalized. Hits discovered: {len(rag_hits)}")
+        return {
+            "status": "COMPLETED",
+            "source_url": target_url,
+            "has_known_matches": is_misinformation_match,
+            "highest_similarity_score": highest_confidence,
+            "contextual_references": rag_hits,
+            "extracted_metadata": {
+                "title": "Unknown",
+                "author": "Unknown"
+            }
+        }
 
-def run_verification_pipeline(payload: dict):
-    """
-    Executes the entire architecture flow using Celery chords and chains.
-    1. Fans out to Text, Audio, and Video analyzers in parallel.
-    2. Chords the results into the Claim Extraction Agent.
-    3. Chains into RAG Verification and Truth Card Generation.
-    """
-    
-    # Fan-Out: Run media analyzers in parallel
-    media_analyzers = group(
-        analyze_text.s(payload),
-        analyze_audio.s(payload),
-        analyze_video.s(payload)
-    )
-    
-    # Fan-In & Sequence: Extract claims -> RAG -> Generate Card
-    verification_chain = chord(
-        media_analyzers,
-        extract_claims.s(payload)
-    ) | verify_rag_sources.s() | generate_truth_card.s()
-    
-    # Dispatch to Celery workers
-    async_result = verification_chain.delay()
-    return async_result.id
+    except Exception as exc:
+        logger.error(f"Pipeline execution stalled on attempt {self.request.retries}: {str(exc)}")
+        # Automatic exponential backoff retry rule if a network timeout occurs
+        raise self.retry(exc=exc, countdown=2 ** self.request.retries)

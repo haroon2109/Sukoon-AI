@@ -11,12 +11,15 @@ class ExtractedClaim(BaseModel):
     date: Optional[str] = Field(description="The date or timeframe mentioned, if any.", default=None)
     confidence: float = Field(description="Confidence score of the extraction between 0.0 and 1.0.")
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
 async def extract_claim_from_text(raw_text: str) -> str:
     """
     Takes raw noisy text (or OCR text) and extracts the core claim using Gemini.
     """
+    from app.core.config import settings
+    if not settings.GEMINI_API_KEY:
+        return raw_text.strip()
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    
     persona = (
         "You are a Claim Extraction Agent.\n"
         "Your job is to read noisy user input and extract ONLY the core, testable assertion.\n"

@@ -9,9 +9,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     DATABASE_URL: str | None = None
     ENVIRONMENT: str = "development"
+    SUPABASE_URL: str | None = None
+    SUPABASE_KEY: str | None = None
 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
 settings = Settings()
