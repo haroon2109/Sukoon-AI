@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest, { params }: { params: { taskId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ taskId: string }> }) {
   try {
-    const { taskId } = params;
+    const { taskId } = await params;
     
     let backendUrl = process.env.BACKEND_API_URL || "http://127.0.0.1:8000";
     backendUrl = backendUrl.replace(/\/$/, "");
