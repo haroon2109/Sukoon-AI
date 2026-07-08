@@ -6,7 +6,7 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type") || "";
-    let backendUrl = process.env.BACKEND_API_URL || "http://localhost:8000";
+    let backendUrl = process.env.BACKEND_API_URL || "http://127.0.0.1:8000";
     // Ensure URL doesn't have trailing slash
     backendUrl = backendUrl.replace(/\/$/, "");
     
