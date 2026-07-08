@@ -1,6 +1,7 @@
 import logging
 from typing import List, Tuple, Optional, Dict, Any
 from app.domain.schemas.schemas import ExtractedClaim, RetrievedEvidence, VerdictCategory, RecommendedAction, FactVerificationOutput
+from app.core.payload_optimizer import PayloadOptimizer
 from app.providers.reasoning_provider import ProviderFactory
 
 logger = logging.getLogger(__name__)
@@ -12,13 +13,11 @@ class FactVerificationAgent:
     async def verify(self, claims: List[ExtractedClaim], evidence: List[RetrievedEvidence]) -> Dict[str, Any]:
         """
         Autonomous agent that evaluates claims against retrieved evidence using the ReasoningProvider.
-        
-        Returns:
-            Dictionary containing fields for the Explainable AI Report.
         """
-        claims_text = "\n".join([f"- {c.claim_text}" for c in claims])
-        # Include credibility score if available, otherwise just use URL
-        evidence_text = "\n".join([f"Source: {e.source_url} (Credibility: {getattr(e, 'credibility_score', 'Unknown')})\n{e.content}" for e in evidence])
+        provider = ProviderFactory.get_provider()
+        
+        # Optimize context to prevent exceeding provider limits
+        prompt_content = PayloadOptimizer.optimize_evidence_list(claims, evidence, max_context_window=provider.capabilities.max_context_window)
         
         schema_format = (
             '{\n'
@@ -43,10 +42,10 @@ Respond ONLY with a valid JSON object matching this schema exactly:
 {schema_format}
 """
 
-        prompt = f"Please evaluate the following claims based on the provided evidence.\n\nClaims:\n{claims_text}\n\nEvidence:\n{evidence_text}"
+        prompt = f"Please evaluate the following claims based on the provided evidence.\n\n{prompt_content}"
 
         try:
-            provider = ProviderFactory.get_provider()
+            # We already have provider from above
             result = await provider.generate_json(prompt, system_instruction=system_instruction)
             
             if "error" in result:

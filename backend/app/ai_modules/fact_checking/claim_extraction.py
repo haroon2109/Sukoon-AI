@@ -24,10 +24,12 @@ class ClaimExtractionAgent:
             f'{{"claims": [{{"claim_text": "string", "context": "string"}}]}}'
         )
         
-        prompt = f"Text:\n{text}"
+        from app.core.payload_optimizer import PayloadOptimizer
+        provider = ProviderFactory.get_provider()
+        optimized_text = PayloadOptimizer.optimize_text(text, max_chars=provider.capabilities.max_context_window * 3) # conservative char limit
+        prompt = f"Text:\n{optimized_text}"
         
         try:
-            provider = ProviderFactory.get_provider()
             result = await provider.generate_json(prompt, system_instruction=system_instruction)
             
             if "error" in result:

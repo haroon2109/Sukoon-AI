@@ -60,7 +60,9 @@ class OCREngine:
                 for line in result[0]:
                     text = line[1][0]
                     lines.append(text)
-                extracted_text = "\n".join(lines)
+                
+                from app.core.payload_optimizer import deduplicate_lines
+                extracted_text = deduplicate_lines("\n".join(lines))
             
             # Explicitly delete and collect to free RAM
             del paddle_ocr
@@ -79,7 +81,9 @@ class OCREngine:
                 easy_reader = easyocr.Reader(['en'])
                 
                 result = easy_reader.readtext(image_file_path, detail=0)
-                extracted_text = "\n".join(result)
+                
+                from app.core.payload_optimizer import deduplicate_lines
+                extracted_text = deduplicate_lines("\n".join(result))
                 
                 # Explicitly delete and collect
                 del easy_reader

@@ -4,9 +4,23 @@ import re
 import httpx
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any
+
+from app.providers.registry import PROVIDER_REGISTRY
 
 logger = logging.getLogger(__name__)
+
+def extract_json_from_text(content: str) -> Dict[str, Any]:
+    content = content.strip()
+    if "```" in content:
+        match = re.search(r"```(?:json)?\s*(.*?)\s*```", content, re.DOTALL)
+        if match:
+            content = match.group(1).strip()
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON Parsing Error: {e} | Content: {content}")
+        return {"error": "Failed to parse JSON response"}
 
 class ReasoningProvider(ABC):
     @abstractmethod
@@ -15,29 +29,20 @@ class ReasoningProvider(ABC):
         pass
 
 class BaseHTTPProvider(ReasoningProvider):
-    """Base class for providers that use HTTP APIs (Groq, OpenRouter, etc.)"""
-    def __init__(self, api_url: str, api_key: str, model_name: str):
+    """Base class for providers that use HTTP APIs"""
+    def __init__(self, api_url: str, api_key: str, model_name: str, provider_name: str):
         self.api_url = api_url
         self.api_key = api_key
         self.model_name = model_name
-
-    def _parse_json_content(self, content: str) -> Dict[str, Any]:
-        content = content.strip()
-        if "```" in content:
-            match = re.search(r"```(?:json)?\s*(.*?)\s*```", content, re.DOTALL)
-            if match:
-                content = match.group(1).strip()
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON Parsing Error: {e} | Content: {content}")
-            return {"error": "Failed to parse JSON response"}
+        self.provider_name = provider_name
+        self.capabilities = PROVIDER_REGISTRY.get(provider_name, PROVIDER_REGISTRY["mock"])
 
     async def _post_request(self, payload: dict, headers: dict) -> Dict[str, Any]:
         if not self.api_key and not self.api_url.startswith("http://localhost"):
             return {"error": "API Key is missing for this provider."}
             
         try:
+            logger.info(f"Inference Call | Provider: {self.provider_name} | Model: {self.model_name} | JSON Mode: {self.capabilities.supports_json_mode}")
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     self.api_url,
@@ -45,10 +50,17 @@ class BaseHTTPProvider(ReasoningProvider):
                     headers=headers,
                     timeout=120.0
                 )
+                
+                # Check for 400 Bad Request
+                if response.status_code == 400:
+                    logger.error(f"400 Bad Request from {self.provider_name}: {response.text}")
+                    return {"error": f"Bad Request 400: {response.text}"}
+                    
                 response.raise_for_status()
                 data = response.json()
                 content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-                return self._parse_json_content(content)
+                return extract_json_from_text(content)
+                
         except Exception as e:
             logger.error(f"Provider API Error ({self.__class__.__name__}): {str(e)}")
             return {"error": str(e)}
@@ -58,19 +70,24 @@ class GroqProvider(BaseHTTPProvider):
         super().__init__(
             api_url="https://api.groq.com/openai/v1/chat/completions",
             api_key=os.getenv("GROQ_API_KEY", ""),
-            model_name=os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+            model_name=os.getenv("LLM_MODEL", "llama-3.3-70b-versatile"),
+            provider_name="groq"
         )
 
     async def generate_json(self, prompt: str, system_instruction: str = "") -> Dict[str, Any]:
+        messages = [
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": prompt}
+        ]
         payload = {
             "model": self.model_name,
-            "messages": [
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
-            ],
-            "response_format": {"type": "json_object"},
+            "messages": messages,
             "temperature": 0.0
         }
+        
+        if self.capabilities.supports_json_mode:
+            payload["response_format"] = {"type": "json_object"}
+            
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -82,18 +99,21 @@ class OpenRouterProvider(BaseHTTPProvider):
         super().__init__(
             api_url="https://openrouter.ai/api/v1/chat/completions",
             api_key=os.getenv("OPENROUTER_API_KEY", ""),
-            model_name=os.getenv("LLM_MODEL", "meta-llama/llama-3-8b-instruct:free")
+            model_name=os.getenv("LLM_MODEL", "meta-llama/llama-3-8b-instruct:free"),
+            provider_name="openrouter"
         )
 
     async def generate_json(self, prompt: str, system_instruction: str = "") -> Dict[str, Any]:
+        # OpenRouter drops response_format to avoid 400 errors across varying models
+        if not self.capabilities.supports_json_mode:
+            system_instruction += "\n\nCRITICAL: You MUST return a raw JSON object. Do not wrap it in markdown. Do not include any other text."
+            
         payload = {
             "model": self.model_name,
             "messages": [
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": prompt}
             ],
-            # OpenRouter support for response_format depends on the underlying model,
-            # so we just instruct it in the prompt (already done by callers).
             "temperature": 0.0
         }
         headers = {
@@ -109,11 +129,13 @@ class OllamaProvider(BaseHTTPProvider):
         super().__init__(
             api_url=f"{os.getenv('OLLAMA_URL', 'http://localhost:11434')}/api/chat",
             api_key="local",
-            model_name=os.getenv("LLM_MODEL", "qwen2.5:14b-instruct-q4_K_M")
+            model_name=os.getenv("LLM_MODEL", "qwen2.5:14b-instruct-q4_K_M"),
+            provider_name="ollama"
         )
 
     async def _post_request(self, payload: dict, headers: dict) -> Dict[str, Any]:
         try:
+            logger.info(f"Inference Call | Provider: ollama | Model: {self.model_name}")
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     self.api_url,
@@ -123,7 +145,7 @@ class OllamaProvider(BaseHTTPProvider):
                 response.raise_for_status()
                 data = response.json()
                 content = data.get("message", {}).get("content", "").strip()
-                return self._parse_json_content(content)
+                return extract_json_from_text(content)
         except Exception as e:
             logger.error(f"Ollama API Error: {str(e)}")
             return {"error": str(e)}
@@ -135,15 +157,16 @@ class OllamaProvider(BaseHTTPProvider):
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": prompt}
             ],
-            "format": "json",
             "stream": False,
             "options": {"temperature": 0.0}
         }
+        if self.capabilities.supports_json_mode:
+            payload["format"] = "json"
+            
         return await self._post_request(payload, {})
 
 class MockProvider(ReasoningProvider):
     async def generate_json(self, prompt: str, system_instruction: str = "") -> Dict[str, Any]:
-        # Simple mock for testing without API keys
         return {
             "verdict": "UNVERIFIED",
             "confidence_score": 50.0,
@@ -168,4 +191,4 @@ class ProviderFactory:
         elif provider_name == "mock":
             return MockProvider()
         else:
-            return GroqProvider() # Default
+            return GroqProvider()

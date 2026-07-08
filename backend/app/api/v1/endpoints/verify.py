@@ -118,6 +118,83 @@ async def submit_media_for_verification(
         message="Media uploaded successfully. Verification pipeline started."
     )
 
+@router.post("/sync", status_code=status.HTTP_200_OK)
+@limiter.limit("10/minute")
+async def verify_sync(request: Request, db: Session = Depends(get_db)):
+    """
+    Synchronous endpoint for Next.js frontend proxy.
+    Accepts JSON with { content } or multipart/form-data with { file, content }.
+    """
+    from app.services.verification_service import agentic_workflow_coordinator
+    from app.ai_modules.media_processing.processors import media_processor
+    
+    content_type = request.headers.get("content-type", "")
+    text = ""
+    file_path = None
+    
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        text = form.get("content", "")
+        file_obj = form.get("file")
+        if file_obj and hasattr(file_obj, "filename") and file_obj.filename:
+            upload_dir = os.path.join("/tmp", "sukoon_uploads")
+            os.makedirs(upload_dir, exist_ok=True)
+            safe_filename = f"{uuid_lib.uuid4().hex}_{secure_filename(file_obj.filename)}"
+            file_path = os.path.join(upload_dir, safe_filename)
+            with open(file_path, "wb") as f:
+                f.write(await file_obj.read())
+                
+            # Process media synchronously
+            from app.ai_modules.media_processing.processors import get_ocr_engine, get_whisper_engine, get_video_analyzer
+            
+            media_context = ""
+            try:
+                if "image" in file_obj.content_type:
+                    media_context = get_ocr_engine().extract_text(file_path)
+                elif "audio" in file_obj.content_type:
+                    media_context = get_whisper_engine().transcribe(file_path)
+                elif "video" in file_obj.content_type:
+                    res = get_video_analyzer().analyze_video(file_path)
+                    media_context = "\n".join(res)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Media extraction failed: {e}")
+                
+            if media_context:
+                text = f"{text}\n\n[Media Context extracted from {file_obj.content_type}]:\n{media_context}"
+    else:
+        try:
+            body = await request.json()
+            text = body.get("content", body.get("url", ""))
+        except:
+            text = ""
+            
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Empty content provided")
+        
+    result = await agentic_workflow_coordinator.process_verification(text)
+    
+    # Map raw verdict to frontend token
+    raw_verdict = result.get("verdict_category", "")
+    def _map_v(v_str):
+        v = str(v_str).lower()
+        if any(word in v for word in ["verified", "true", "safe", "🟢"]): return "verified"
+        if any(word in v for word in ["misleading", "🟠"]): return "misleading"
+        if any(word in v for word in ["false", "🔴"]): return "false"
+        return "unable_to_verify"
+        
+    frontend_verdict = _map_v(raw_verdict)
+    
+    return {
+        "success": True,
+        "data": {
+            "verdict": frontend_verdict,
+            "confidenceScore": result.get("confidence_score", 50),
+            "explanation": result.get("summary_for_moderator", result.get("evidence_synthesis", "No explanation provided.")),
+            "citations": result.get("citations", result.get("evidence_sources", []))
+        }
+    }
+
 from app.repositories.repos import verification_repo, claim_repo
 from datetime import datetime
 
