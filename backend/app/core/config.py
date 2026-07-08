@@ -13,7 +13,10 @@ class Settings(BaseSettings):
     SUPABASE_URL: str | None = None
     SUPABASE_KEY: str | None = None
     CORS_ORIGINS: str = "http://localhost:3000,https://sukoon-ai-pied.vercel.app"
-
+    MAX_IMAGE_SIZE_MB: int = 5
+    MAX_AUDIO_DURATION_SEC: int = 300
+    MAX_VIDEO_DURATION_SEC: int = 120
+    MAX_REQUEST_BODY_SIZE_MB: int = 25
     @model_validator(mode="after")
     def validate_database_url(self) -> 'Settings':
         if not self.DATABASE_URL:

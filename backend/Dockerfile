@@ -1,35 +1,43 @@
-# Use the official lightweight Python image.
-FROM python:3.11-slim
+# Use Python 3.11 slim image for minimal footprint
+FROM python:3.11-slim as builder
 
-# Allow statements and log messages to immediately appear in the Knative logs
-ENV PYTHONUNBUFFERED=True
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    ffmpeg \
+    libsm6 \
+    libxext6 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory
 WORKDIR /app
 
-# Create a non-root user
-RUN groupadd -r sukoon && useradd -r -g sukoon sukoon
-
-# Copy the requirements file into the container
+# Copy requirements first to leverage Docker cache
 COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Create final image
+FROM python:3.11-slim
 
-# Install Playwright browsers, OS dependencies, and ffmpeg
-RUN apt-get update && apt-get install -y ffmpeg libsm6 libxext6 && playwright install chromium && playwright install-deps chromium
+WORKDIR /app
 
-# Copy the rest of the application code
-COPY . .
+# Install runtime dependencies required by OpenCV and PaddleOCR
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libsm6 \
+    libxext6 \
+    libgl1 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Change ownership to the non-root user
-RUN chown -R sukoon:sukoon /app
+# Copy installed python packages from builder
+COPY --from=builder /install /usr/local
 
-# Switch to the non-root user
-USER sukoon
+# Copy application code
+COPY . /app
 
 # Expose port
 EXPOSE 8000
 
-# Command to run the application using Uvicorn
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run FastAPI using Uvicorn
+# Limit workers to 1 or 2 for free-tier constraints (e.g., 512MB RAM)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

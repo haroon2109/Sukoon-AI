@@ -1,32 +1,41 @@
-import os
+import logging
 from typing import List
 from app.domain.schemas.schemas import ExtractedClaim, ExtractedClaimsList
-from google import genai
+from app.providers.reasoning_provider import ProviderFactory
+
+logger = logging.getLogger(__name__)
 
 class ClaimExtractionAgent:
     def __init__(self):
-        # Initialize standard Gemini client
-        api_key = os.environ.get("GEMINI_API_KEY")
-        self.client = genai.Client(api_key=api_key) if api_key else genai.Client()
+        pass
 
     async def extract(self, text: str) -> List[ExtractedClaim]:
         """
-        Autonomous agent that uses Gemini to identify and extract verifiable claims from raw text.
+        Autonomous agent that uses the ReasoningProvider to identify and extract verifiable claims from raw text.
         """
         if not text.strip():
             return []
             
-        prompt = f"Extract all distinct, verifiable claims from the following text. Provide the claim text and a brief context for each.\n\nText:\n{text}"
-        
-        response = await self.client.aio.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config={
-                'response_mime_type': 'application/json',
-                'response_schema': ExtractedClaimsList,
-            }
+        system_instruction = (
+            f"Extract all distinct, verifiable claims from the following text. "
+            f"Provide the claim text and a brief context for each. "
+            f"Ignore opinions, jokes, sarcasm, and personal thoughts.\n"
+            f"Respond ONLY with a valid JSON object matching this schema:\n"
+            f'{{"claims": [{{"claim_text": "string", "context": "string"}}]}}'
         )
         
-        if response.parsed:
-            return response.parsed.claims
-        return []
+        prompt = f"Text:\n{text}"
+        
+        try:
+            provider = ProviderFactory.get_provider()
+            result = await provider.generate_json(prompt, system_instruction=system_instruction)
+            
+            if "error" in result:
+                logger.error(f"Error from provider during claim extraction: {result['error']}")
+                return []
+                
+            claims_list = ExtractedClaimsList(**result)
+            return claims_list.claims
+        except Exception as e:
+            logger.error(f"Error in ClaimExtractionAgent: {e}")
+            return []

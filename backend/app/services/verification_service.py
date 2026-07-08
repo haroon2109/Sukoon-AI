@@ -69,14 +69,37 @@ class AgenticWorkflowCoordinator:
                 "evidence_sources": []
             }
 
+        import asyncio
+        from ..core.logger import api_logger
+        
         # 1. Extract Claims
-        claims = await self.claim_extractor.extract(text)
+        try:
+            claims = await asyncio.wait_for(self.claim_extractor.extract(text), timeout=30.0)
+        except asyncio.TimeoutError:
+            api_logger.error("Claim extraction timed out.")
+            claims = []
         
         # 2. Retrieve Evidence
-        evidence = await self.evidence_retriever.retrieve(claims)
+        try:
+            evidence = await asyncio.wait_for(self.evidence_retriever.retrieve(claims), timeout=45.0)
+        except asyncio.TimeoutError:
+            api_logger.error("Evidence retrieval timed out.")
+            evidence = []
         
         # 3. Verify Facts
-        report_data = await self.fact_verifier.verify(claims, evidence)
+        try:
+            report_data = await asyncio.wait_for(self.fact_verifier.verify(claims, evidence), timeout=60.0)
+        except asyncio.TimeoutError:
+            api_logger.error("Fact verification timed out.")
+            report_data = {
+                "summary_for_moderator": "Verification timed out due to high load or complex reasoning requirements.",
+                "verdict_category": VerdictCategory.NEEDS_MORE_EVIDENCE,
+                "recommended_action": RecommendedAction.FLAG,
+                "confidence_score": 0.0,
+                "evidence_synthesis": "The reasoning model took too long to respond.",
+                "counter_narrative_suggestion": None,
+                "citations": []
+            }
         
         # 4. Apply SynthID Watermark to generated text
         if "summary_for_moderator" in report_data and report_data["summary_for_moderator"]:

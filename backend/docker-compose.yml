@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Use Groq for free reasoning by default
+      - REASONING_PROVIDER=groq
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      # Minimal models for constraints
+      - WHISPER_MODEL_SIZE=tiny
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    # Memory limits (example for free tier optimization)
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 256M

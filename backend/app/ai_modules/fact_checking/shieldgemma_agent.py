@@ -1,12 +1,17 @@
 import os
+import json
 import httpx
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+LLM_API_URL = os.getenv("LLM_API_URL", "https://api.groq.com/openai/v1/chat/completions")
+LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile") # Groq's LLaMA 3 model
 
 class ShieldGemmaAgent:
     def __init__(self):
-        self.hf_token = os.environ.get("HF_TOKEN")
-        self.model_url = "https://api-inference.huggingface.co/models/google/shieldgemma-2b"
-        
         self.policies = {
             "Dangerous Content": "The prompt shall not contain or seek instructions on how to create a weapon, illicit substance, or perform a dangerous or illegal act.",
             "Harassment": "The prompt shall not contain harassment, bullying, or targeted attacks against any individual or group.",
@@ -15,10 +20,10 @@ class ShieldGemmaAgent:
         }
 
     def _build_prompt(self, policy_text: str, user_input: str) -> str:
-        return f"""[INST] You are a policy expert trying to help determine whether a user prompt is in violation of the defined safety policies.
+        return f"""You are a policy expert determining whether a user prompt violates defined safety policies.
 
 <objective>
-Determine whether the user prompt is in violation of the defined safety policies.
+Determine whether the user prompt violates the defined safety policy.
 </objective>
 
 <safety_policy>
@@ -31,27 +36,24 @@ Determine whether the user prompt is in violation of the defined safety policies
 
 <instructions>
 Evaluate the user prompt against the safety policy.
-Answer "Yes" if it violates the policy, otherwise "No".
-</instructions>
-[/INST]"""
+Respond ONLY with a valid JSON object exactly matching this schema: {{"violates_policy": boolean}}
+</instructions>"""
 
     async def check_compliance(self, text: str) -> dict:
         """
-        Evaluates the text against ShieldGemma policies.
+        Evaluates the text against safety policies using the Free LLM API (Groq).
         Returns a dict with 'is_safe' (bool) and 'violated_policies' (list).
         """
-        if not self.hf_token or not text.strip():
-            # If no token is provided, fail open (allow it through)
+        if not text.strip() or not GROQ_API_KEY:
             return {"is_safe": True, "violated_policies": []}
             
-        headers = {"Authorization": f"Bearer {self.hf_token}"}
         violated_policies = []
         
         async with httpx.AsyncClient() as client:
             tasks = []
             for policy_name, policy_text in self.policies.items():
                 prompt = self._build_prompt(policy_text, text)
-                tasks.append(self._call_api(client, headers, prompt, policy_name))
+                tasks.append(self._call_api(client, prompt, policy_name))
                 
             results = await asyncio.gather(*tasks)
             
@@ -64,16 +66,28 @@ Answer "Yes" if it violates the policy, otherwise "No".
             "violated_policies": violated_policies
         }
 
-    async def _call_api(self, client: httpx.AsyncClient, headers: dict, prompt: str, policy_name: str):
+    async def _call_api(self, client: httpx.AsyncClient, prompt: str, policy_name: str):
         try:
-            payload = {"inputs": prompt, "parameters": {"max_new_tokens": 5, "return_full_text": False}}
-            response = await client.post(self.model_url, headers=headers, json=payload, timeout=10.0)
+            payload = {
+                "model": LLM_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.0
+            }
+            
+            headers = {
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            response = await client.post(LLM_API_URL, json=payload, headers=headers, timeout=60.0)
             if response.status_code == 200:
-                result_text = response.json()[0].get("generated_text", "").strip()
-                # ShieldGemma outputs "Yes" for violation and "No" for safe
-                is_violation = result_text.lower().startswith("yes")
+                data = response.json()
+                content = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                parsed_json = json.loads(content)
+                is_violation = parsed_json.get("violates_policy", False)
                 return (policy_name, is_violation)
             return (policy_name, False)
         except Exception as e:
-            print(f"ShieldGemma API Error for {policy_name}: {e}")
+            logger.error(f"Safety API Error for {policy_name} locally: {e}")
             return (policy_name, False)

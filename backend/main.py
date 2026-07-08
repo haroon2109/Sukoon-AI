@@ -16,6 +16,7 @@ async def lifespan(app: FastAPI):
     from app.domain.models import User, Claim, Verification, MediaAsset, EvidenceSource, RiskScore  # noqa: F401
     # Run database setup safely on startup
     Base.metadata.create_all(bind=engine)
+    app.state.media_semaphore = asyncio.Semaphore(1)
     yield
 
 app = FastAPI(title="Sukoon AI", version="1.0.0", description="Misinformation Verification Platform", lifespan=lifespan)
@@ -53,8 +54,33 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
+import psutil
+import asyncio
+from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
+
+class ResourceMonitorMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Enforce body size limit
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > settings.MAX_REQUEST_BODY_SIZE_MB * 1024 * 1024:
+                    return JSONResponse(status_code=413, content={"detail": f"Request body too large. Limit is {settings.MAX_REQUEST_BODY_SIZE_MB}MB."})
+            except ValueError:
+                pass
+                
+        response = await call_next(request)
+        
+        # Log memory after response
+        process = psutil.Process()
+        mem_info = process.memory_info()
+        api_logger.info(f"Memory Usage: RSS={mem_info.rss / 1024 / 1024:.2f} MB | Endpoint: {request.url.path}")
+        
+        return response
+
+app.add_middleware(ResourceMonitorMiddleware)
+
 origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
 
 app.add_middleware(

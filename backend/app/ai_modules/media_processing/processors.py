@@ -15,116 +15,112 @@ try:
 except ImportError:
     HAS_TRANSFORMERS = False
 
-try:
-    import pytesseract
-    HAS_TESSERACT = True
-except ImportError:
-    HAS_TESSERACT = False
+from ..services.vision_service import vision_service
 
-class WhisperSTT:
-    def __init__(self):
-        # Assumes OPENAI_API_KEY is set in environment variables
-        self.client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-
-    def transcribe(self, audio_file_path: str) -> str:
-        """
-        Calls the OpenAI Whisper API to transcribe multilingual audio files 
-        (Hindi, Tamil, English) into text.
-        """
-        try:
-            with open(audio_file_path, "rb") as audio_file:
-                transcription = self.client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file
-                )
-            return transcription.text
-        except Exception as e:
-            api_logger.error(f"Error transcribing audio with Whisper: {e}")
-            raise RuntimeError(f"Audio transcription failed: {e}")
-
-class VisionLanguageModel:
-    def __init__(self):
-        """
-        Initializes the Salesforce BLIP model for image captioning/OCR.
-        """
-        self.processor = None
-        self.model = None
-        if HAS_TRANSFORMERS:
-            try:
-                self.processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-                self.model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
-            except Exception as e:
-                api_logger.error(f"Error loading BLIP model: {e}")
-                raise RuntimeError(f"Failed to load vision model: {e}")
-
-    def process_image(self, image_input, prompt: str = None) -> str:
-        """
-        Processes an image to generate a text description or identify text (OCR).
-        Accepts either a file path (str) or a PIL.Image object.
-        """
-        if not self.processor or not self.model:
-            raise RuntimeError("Vision model is not loaded (requires transformers & torch).")
-        
-        try:
-            if isinstance(image_input, str):
-                raw_image = Image.open(image_input).convert('RGB')
-            elif isinstance(image_input, Image.Image):
-                raw_image = image_input.convert('RGB')
-            else:
-                raise ValueError("Invalid image input type.")
-                
-            if prompt:
-                inputs = self.processor(raw_image, prompt, return_tensors="pt")
-            else:
-                inputs = self.processor(raw_image, return_tensors="pt")
-            
-            out = self.model.generate(**inputs, max_new_tokens=50)
-            return self.processor.decode(out[0], skip_special_tokens=True)
-        except Exception as e:
-            api_logger.error(f"Error processing image with Vision Language Model: {e}")
-            raise RuntimeError(f"Image processing failed: {e}")
+_paddle_ocr = None
 
 class OCREngine:
+    def __init__(self):
+        pass
+
     def extract_text(self, image_file_path: str) -> str:
         """
-        Uses Tesseract OCR to extract text from images/video frames.
+        Uses PaddleOCR to extract text from images/video frames. Falls back to EasyOCR.
+        Loads models only during extraction and unloads them immediately to save memory.
+        Resizes images >1920px to save memory.
         """
-        if not HAS_TESSERACT:
-            api_logger.warning("pytesseract is not installed. Returning empty OCR string.")
-            return ""
-            
+        import gc
+        from PIL import Image
+        import tempfile
+        
+        temp_path = None
         try:
-            image = Image.open(image_file_path)
-            extracted_text = pytesseract.image_to_string(image)
-            return extracted_text.strip()
+            with Image.open(image_file_path) as img:
+                max_dim = 1920
+                if img.width > max_dim or img.height > max_dim:
+                    img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+                    fd, temp_path = tempfile.mkstemp(suffix=".jpg")
+                    os.close(fd)
+                    img.convert("RGB").save(temp_path, format="JPEG", quality=85)
+                    image_file_path = temp_path
         except Exception as e:
-            api_logger.error(f"Error extracting text with OCR: {e}")
-            raise RuntimeError(f"OCR extraction failed: {e}")
+            api_logger.warning(f"Failed to resize image before OCR: {e}")
+
+        extracted_text = ""
+        
+        # 1. Try PaddleOCR first
+        try:
+            from paddleocr import PaddleOCR
+            api_logger.info("Initializing PaddleOCR for current request...")
+            paddle_ocr = PaddleOCR(use_angle_cls=True, lang='en')
+            
+            result = paddle_ocr.ocr(image_file_path, cls=True)
+            if result and result[0]:
+                lines = []
+                for line in result[0]:
+                    text = line[1][0]
+                    lines.append(text)
+                extracted_text = "\n".join(lines)
+            
+            # Explicitly delete and collect to free RAM
+            del paddle_ocr
+            gc.collect()
+            
+        except ImportError:
+            api_logger.warning("PaddleOCR is not installed. Will rely entirely on EasyOCR fallback.")
+        except Exception as e:
+            api_logger.error(f"Error extracting text with PaddleOCR: {e}")
+                
+        # 2. Fallback to EasyOCR if PaddleOCR failed or found nothing
+        if not extracted_text.strip():
+            try:
+                import easyocr
+                api_logger.info("Initializing EasyOCR fallback for current request...")
+                easy_reader = easyocr.Reader(['en'])
+                
+                result = easy_reader.readtext(image_file_path, detail=0)
+                extracted_text = "\n".join(result)
+                
+                # Explicitly delete and collect
+                del easy_reader
+                gc.collect()
+            except ImportError:
+                api_logger.warning("EasyOCR is not installed either. OCR will fail.")
+            except Exception as e:
+                api_logger.error(f"Error extracting text with EasyOCR: {e}")
+                
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+                    
+        return extracted_text
 
 class VideoFrameAnalyzer:
-    def __init__(self, vision_engine: VisionLanguageModel):
-        self.vision_engine = vision_engine
-
     def analyze_video(self, video_file_path: str, prompt: str = None) -> list[str]:
         """
-        Extracts frames from a video at 1 FPS and uses the VisionLanguageModel to describe them.
+        Extracts frames from a video and uses the VisionService to describe them.
         """
+        import asyncio
         if not HAS_CV2:
             return ["Error: opencv-python is required for video frame analysis."]
 
         if not os.path.exists(video_file_path):
             return [f"Error: Video file not found: {video_file_path}"]
 
-        descriptions = []
         try:
             cap = cv2.VideoCapture(video_file_path)
             fps = cap.get(cv2.CAP_PROP_FPS)
             if fps == 0 or not fps:
                 fps = 30 # fallback if OpenCV can't detect FPS
 
-            frame_interval = int(round(fps)) # 1 FPS
+            frame_interval = int(round(fps * 5)) # 1 frame every 5 seconds
+            if frame_interval == 0:
+                frame_interval = 1
             frame_count = 0
-            seconds = 0
+            
+            frames_to_analyze = []
             
             while cap.isOpened():
                 ret, frame = cap.read()
@@ -133,18 +129,30 @@ class VideoFrameAnalyzer:
                     
                 if frame_count % frame_interval == 0:
                     # Convert BGR to RGB
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    pil_img = Image.fromarray(frame_rgb)
-                    
-                    # Process with BLIP
-                    desc = self.vision_engine.process_image(pil_img, prompt)
-                    descriptions.append(f"Second {seconds}: {desc}")
-                    seconds += 1
+                    _, buffer = cv2.imencode('.jpg', frame)
+                    frames_to_analyze.append(buffer.tobytes())
+                    if len(frames_to_analyze) >= 6: # Limit to 6 frames (max 30s)
+                        break
                     
                 frame_count += 1
                 
             cap.release()
-            return descriptions
+            
+            if not frames_to_analyze:
+                return ["No frames extracted."]
+                
+            # Analyze all frames at once
+            prompt_to_use = prompt or "What is happening in this video sequence?"
+            loop = asyncio.get_event_loop()
+            
+            if loop.is_running():
+                # We can't use await here because this is a synchronous function (historically)
+                import nest_asyncio
+                nest_asyncio.apply()
+            
+            result = loop.run_until_complete(vision_service.analyze_video_frames(frames_to_analyze, prompt_to_use))
+            return [result]
+            
         except Exception as e:
             print(f"Error analyzing video frames: {e}")
             return [f"Error processing video: {str(e)}"]
@@ -196,23 +204,16 @@ class OmniProcessor:
 
 # Lazy singletons — instantiated on first use to avoid blocking server startup
 # and to avoid crashing when optional dependencies (OpenAI, BLIP) are missing.
-_whisper_engine = None
-_vision_engine = None
 _ocr_engine = None
 _video_analyzer = None
-_omni_engine = None
 
-def get_whisper_engine() -> WhisperSTT:
-    global _whisper_engine
-    if _whisper_engine is None:
-        _whisper_engine = WhisperSTT()
-    return _whisper_engine
+def get_whisper_engine():
+    from ..services.audio_transcriber import audio_transcriber
+    return audio_transcriber
 
-def get_vision_engine() -> VisionLanguageModel:
-    global _vision_engine
-    if _vision_engine is None:
-        _vision_engine = VisionLanguageModel()
-    return _vision_engine
+def get_vision_engine():
+    from ..services.vision_service import vision_service
+    return vision_service
 
 def get_ocr_engine() -> OCREngine:
     global _ocr_engine
@@ -223,18 +224,10 @@ def get_ocr_engine() -> OCREngine:
 def get_video_analyzer() -> VideoFrameAnalyzer:
     global _video_analyzer
     if _video_analyzer is None:
-        _video_analyzer = VideoFrameAnalyzer(get_vision_engine())
+        _video_analyzer = VideoFrameAnalyzer()
     return _video_analyzer
 
-def get_omni_engine() -> OmniProcessor:
-    global _omni_engine
-    if _omni_engine is None:
-        _omni_engine = OmniProcessor()
-    return _omni_engine
-
-# Backwards-compatible aliases (use the lazy getters above in new code)
 whisper_engine = property(get_whisper_engine)
 vision_engine = property(get_vision_engine)
 ocr_engine = property(get_ocr_engine)
 video_analyzer = property(get_video_analyzer)
-omni_engine = property(get_omni_engine)

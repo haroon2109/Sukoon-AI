@@ -1,77 +1,50 @@
 import os
 import logging
+import gc
 from typing import List, Optional
-from google import genai
-from google.genai.errors import APIError
 
 logger = logging.getLogger(__name__)
 
-def get_gemini_client() -> Optional[genai.Client]:
-    """
-    Initializes and returns the GenAI Client if an API key is available.
-    Automatically looks for GEMINI_API_KEY or GOOGLE_API_KEY in the environment.
-    """
-    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-    
-    if not api_key:
-        logger.warning(
-            "Google Gen AI API key missing from environment variables. "
-            "Falling back to local logging. Embeddings cannot be generated."
-        )
-        return None
-        
-    try:
-        # The modern SDK automatically hooks into standard environment keys,
-        # but passing it explicitly guarantees safety across deployment containers.
-        return genai.Client(api_key=api_key)
-    except Exception as e:
-        logger.error(f"Failed to initialize Google GenAI Client: {str(e)}")
-        return None
+# Use a highly efficient, lightweight model suitable for free tiers
+MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 
 def generate_text_embedding(
     text: str, 
-    model: str = "gemini-embedding-001", 
-    dimensions: Optional[int] = 768
+    model: str = "minilm", 
+    dimensions: Optional[int] = 384
 ) -> List[float]:
     """
-    Generates real semantic vector embeddings using Google's Gen AI SDK.
-    
-    Args:
-        text (str): The raw document text or query string to embed.
-        model (str): The foundational embedding model to use.
-        dimensions (int): Optional dimensionality truncation (e.g., 768 for pgvector compatibility).
-        
-    Returns:
-        List[float]: The generated mathematical vector array.
+    Generates real semantic vector embeddings using a local sentence-transformers model.
+    Implements extreme memory optimization (lazy load + unload).
     """
     if not text or not text.strip():
         raise ValueError("Input text string cannot be empty.")
-        
-    client = get_gemini_client()
-    
-    # Critical Hackathon Fallback: Avoid throwing unhandled 500 crashes if key goes missing mid-demo
-    if not client:
-        logger.critical("CRITICAL: Generating a temporary zeroed mock vector due to missing API key context.")
-        return [0.0] * (dimensions if dimensions else 3072)
 
     try:
-        # Utilizing the standardized models utility pattern from the new SDK
-        response = client.models.embed_content(
-            model=model,
-            contents=text,
-            # Matryoshka Representation Learning parameter to match your vector storage dimensions
-            config={"output_dimensionality": dimensions} if dimensions else None
-        )
-        
-        # Extracts the raw floats from the structured response payload
-        if response.embeddings and len(response.embeddings) > 0:
-            return response.embeddings[0].values
-        else:
-            raise ValueError("API returned an empty embedding list payload.")
+        from sentence_transformers import SentenceTransformer
+    except ImportError:
+        logger.error("sentence_transformers is not installed. Embeddings cannot be generated.")
+        return [0.0] * (dimensions if dimensions else 384)
 
-    except APIError as api_err:
-        logger.error(f"Google Gen AI API Error encountered: {api_err.message}")
-        raise api_err
+    try:
+        logger.info(f"Loading Embedding Model ({MODEL_NAME}) for current request...")
+        # Load directly to CPU for strict memory limited environments
+        st_model = SentenceTransformer(MODEL_NAME, device="cpu")
+        
+        # Encode
+        response = st_model.encode([text], show_progress_bar=False)
+        if response is not None and len(response) > 0:
+            vector = response[0].tolist()
+        else:
+            raise ValueError("Embedding model returned an empty vector payload.")
+            
+        # Free memory aggressively
+        del st_model
+        gc.collect()
+        
+        return vector
+
     except Exception as e:
-        logger.error(f"Unexpected failure inside the embedding generation pipeline: {str(e)}")
-        raise e
+        logger.error(f"Unexpected failure inside the local embedding generation pipeline: {str(e)}")
+        # Return fallback zero vector so app doesn't crash entirely during an OOM event
+        return [0.0] * (dimensions if dimensions else 384)
