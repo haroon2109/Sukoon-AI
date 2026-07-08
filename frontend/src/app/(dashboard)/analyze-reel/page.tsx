@@ -103,26 +103,47 @@ export default function AnalyzeContent() {
       
       const resData = await response.json()
       
-      if (resData.success && resData.data) {
-          setAnalysisStep(4);
+      if (resData.success && resData.task_id) {
+          // Polling logic
+          const taskId = resData.task_id;
+          let pollCount = 0;
+          const maxPolls = 30; // 30 * 2s = 60s timeout
           
-          setTimeout(() => {
-              setResultData({
-                verdict: resData.data.verdict,
-                confidenceScore: resData.data.confidenceScore,
-                claimSummary: inputText || (selectedFile ? selectedFile.name : "Uploaded media content"),
-                evidenceFound: resData.data.explanation || "Analysis complete.",
-                actualFacts: resData.data.explanation,
-                aiExplanation: resData.data.explanation || "",
-                sourceCitations: (resData.data.citations || []).map((s: any) => s.url || s.title || s),
-                sources: (resData.data.citations || []).map((s: any) => ({ name: s.title || s.url || s, url: s.url || "#" })),
-                aiDeepfake: false
-              });
-              setIsAnalyzing(false);
-              setShowNewResult(true);
-              setInputText("");
-              setSelectedFile(null);
-          }, 500);
+          while (pollCount < maxPolls) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            pollCount++;
+            
+            const statusRes = await fetch(`/api/analyze/status/${taskId}`);
+            if (!statusRes.ok) continue;
+            
+            const statusData = await statusRes.json();
+            
+            if (statusData.status === "completed" && statusData.data) {
+                setAnalysisStep(4);
+                
+                setTimeout(() => {
+                    setResultData({
+                      verdict: statusData.data.verdict,
+                      confidenceScore: statusData.data.confidenceScore,
+                      claimSummary: inputText || (selectedFile ? selectedFile.name : "Uploaded media content"),
+                      evidenceFound: statusData.data.explanation || "Analysis complete.",
+                      actualFacts: statusData.data.explanation,
+                      aiExplanation: statusData.data.explanation || "",
+                      sourceCitations: (statusData.data.citations || []).map((s: any) => s.url || s.title || s),
+                      sources: (statusData.data.citations || []).map((s: any) => ({ name: s.title || s.url || s, url: s.url || "#" })),
+                      aiDeepfake: false
+                    });
+                    setIsAnalyzing(false);
+                    setShowNewResult(true);
+                    setInputText("");
+                    setSelectedFile(null);
+                }, 500);
+                return;
+            } else if (statusData.status === "failed") {
+                throw new Error(statusData.error || "Backend processing failed");
+            }
+          }
+          throw new Error("Verification timed out waiting for backend.");
       } else {
           throw new Error(resData.error || "Unknown analysis error")
       }

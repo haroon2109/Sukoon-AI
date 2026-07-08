@@ -118,16 +118,62 @@ async def submit_media_for_verification(
         message="Media uploaded successfully. Verification pipeline started."
     )
 
-@router.post("/sync", status_code=status.HTTP_200_OK)
-@limiter.limit("10/minute")
-async def verify_sync(request: Request, db: Session = Depends(get_db)):
-    """
-    Synchronous endpoint for Next.js frontend proxy.
-    Accepts JSON with { content } or multipart/form-data with { file, content }.
-    """
+tasks_db = {}
+
+def background_fact_check(task_id: str, text: str):
+    import asyncio
     from app.services.verification_service import agentic_workflow_coordinator
-    from app.ai_modules.media_processing.processors import media_processor
     
+    # We must run the async process in a new event loop or using asyncio.run
+    # because BackgroundTasks runs in a separate thread without a running loop by default in some setups.
+    # Actually, BackgroundTasks in FastAPI can be async! Let's make the background task async.
+    pass
+
+async def async_background_fact_check(task_id: str, text: str):
+    try:
+        from app.services.verification_service import agentic_workflow_coordinator
+        result = await agentic_workflow_coordinator.process_verification(text)
+        
+        # Map raw verdict to frontend token
+        raw_verdict = result.get("verdict_category", "")
+        def _map_v(v_str):
+            v = str(v_str).lower()
+            if any(word in v for word in ["verified", "true", "safe", "🟢"]): return "verified"
+            if any(word in v for word in ["misleading", "🟠"]): return "misleading"
+            if any(word in v for word in ["false", "🔴"]): return "false"
+            return "unable_to_verify"
+            
+        frontend_verdict = _map_v(raw_verdict)
+        
+        tasks_db[task_id] = {
+            "status": "completed", 
+            "data": {
+                "verdict": frontend_verdict,
+                "confidenceScore": result.get("confidence_score", 50),
+                "explanation": result.get("summary_for_moderator", result.get("evidence_synthesis", "No explanation provided.")),
+                "citations": result.get("citations", result.get("evidence_sources", []))
+            }
+        }
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Background verification failed: {e}")
+        tasks_db[task_id] = {"status": "failed", "error": str(e)}
+
+@router.get("/status/{task_id}", status_code=status.HTTP_200_OK)
+@limiter.limit("60/minute")
+async def get_task_status(request: Request, task_id: str):
+    task = tasks_db.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+@router.post("/async", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("10/minute")
+async def verify_async(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """
+    Asynchronous endpoint for Next.js frontend proxy.
+    Accepts JSON or multipart/form-data. Spawns a background task.
+    """
     content_type = request.headers.get("content-type", "")
     text = ""
     file_path = None
@@ -144,7 +190,7 @@ async def verify_sync(request: Request, db: Session = Depends(get_db)):
             with open(file_path, "wb") as f:
                 f.write(await file_obj.read())
                 
-            # Process media synchronously
+            # Process media synchronously for now before queuing task (so we don't pass complex file objects)
             from app.ai_modules.media_processing.processors import get_ocr_engine, get_whisper_engine, get_video_analyzer
             
             media_context = ""
@@ -172,28 +218,13 @@ async def verify_sync(request: Request, db: Session = Depends(get_db)):
     if not text.strip():
         raise HTTPException(status_code=400, detail="Empty content provided")
         
-    result = await agentic_workflow_coordinator.process_verification(text)
+    task_id = str(uuid_lib.uuid4())
+    tasks_db[task_id] = {"status": "processing", "data": None}
     
-    # Map raw verdict to frontend token
-    raw_verdict = result.get("verdict_category", "")
-    def _map_v(v_str):
-        v = str(v_str).lower()
-        if any(word in v for word in ["verified", "true", "safe", "🟢"]): return "verified"
-        if any(word in v for word in ["misleading", "🟠"]): return "misleading"
-        if any(word in v for word in ["false", "🔴"]): return "false"
-        return "unable_to_verify"
-        
-    frontend_verdict = _map_v(raw_verdict)
+    # Push heavy lifting to background
+    background_tasks.add_task(async_background_fact_check, task_id, text)
     
-    return {
-        "success": True,
-        "data": {
-            "verdict": frontend_verdict,
-            "confidenceScore": result.get("confidence_score", 50),
-            "explanation": result.get("summary_for_moderator", result.get("evidence_synthesis", "No explanation provided.")),
-            "citations": result.get("citations", result.get("evidence_sources", []))
-        }
-    }
+    return {"success": True, "status": "accepted", "task_id": task_id}
 
 from app.repositories.repos import verification_repo, claim_repo
 from datetime import datetime

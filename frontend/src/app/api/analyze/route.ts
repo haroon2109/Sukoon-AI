@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     // Ensure URL doesn't have trailing slash
     backendUrl = backendUrl.replace(/\/$/, "");
     
-    const targetUrl = `${backendUrl}/api/v1/verify/sync`;
+    const targetUrl = `${backendUrl}/api/v1/verify/async`;
     
     console.log(`Proxying verification request to: ${targetUrl}`);
     
