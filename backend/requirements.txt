@@ -184,8 +184,7 @@ sentence-transformers>=2.2.2
 langchain-text-splitters>=0.2.0
 opencv-python-headless
 ffmpeg-python
-q d r a n t - c l i e n t > = 1 . 7 . 0  
- 
+qdrant-client>=1.7.0
 transformers>=4.38.0
 torch>=2.2.0
 Pillow>=10.2.0
