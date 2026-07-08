@@ -60,14 +60,14 @@ class AudioTranscriber:
                     
             return " ".join(transcription_parts).strip()
             
+        except Exception as e:
+            logger.error(f"Error during audio transcription: {e}")
+            return ""
+            
         finally:
             # Aggressively release model memory when totally done
             if 'whisper_model' in locals():
                 del whisper_model
             gc.collect()
-            
-        except Exception as e:
-            logger.error(f"Error during audio transcription: {e}")
-            return ""
 
 audio_transcriber = AudioTranscriber()
