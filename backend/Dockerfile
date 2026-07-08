@@ -40,4 +40,4 @@ EXPOSE 8000
 
 # Run FastAPI using Uvicorn
 # Limit workers to 1 or 2 for free-tier constraints (e.g., 512MB RAM)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
