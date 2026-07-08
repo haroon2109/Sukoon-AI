@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Set max duration for Vercel Hobby tier (maximum allowable limit)
 export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
