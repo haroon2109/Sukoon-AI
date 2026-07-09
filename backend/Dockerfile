@@ -28,6 +28,9 @@ ENV OMP_NUM_THREADS=1
 ENV OPENBLAS_NUM_THREADS=1
 ENV MKL_NUM_THREADS=1
 
+# Suppress harmless pip warning about running as root in Docker
+ENV PIP_ROOT_USER_ACTION=ignore
+
 
 # Install runtime dependencies required by OpenCV and PaddleOCR
 RUN apt-get update && apt-get install -y --no-install-recommends \
