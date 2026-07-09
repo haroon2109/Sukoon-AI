@@ -47,6 +47,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-jose==3.5.0
 python-multipart==0.0.32
+duckduckgo-search>=5.0.0
 
 redis==8.0.1
 referencing==0.37.0
