@@ -21,6 +21,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Optimize memory allocation and thread limits for constrained environments (e.g., Render Free Tier 512MB)
+ENV MALLOC_ARENA_MAX=2
+ENV MAX_CONCURRENCY=1
+ENV OMP_NUM_THREADS=1
+ENV OPENBLAS_NUM_THREADS=1
+ENV MKL_NUM_THREADS=1
+
+
 # Install runtime dependencies required by OpenCV and PaddleOCR
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -40,4 +48,4 @@ EXPOSE 8000
 
 # Run FastAPI using Uvicorn
 # Limit workers to 1 or 2 for free-tier constraints (e.g., 512MB RAM)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD sh -c "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"
