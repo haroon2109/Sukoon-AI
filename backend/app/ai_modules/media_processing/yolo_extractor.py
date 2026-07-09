@@ -1,8 +1,5 @@
 import os
-try:
-    from ultralytics import YOLO
-except ImportError:
-    pass
+
 
 class YOLOExtractor:
     def __init__(self, model_version: str = "yolov8n.pt"):
@@ -13,6 +10,7 @@ class YOLOExtractor:
         print(f"Initializing YOLO Object & Scene Extractor ({model_version})...")
         self.model = None
         try:
+            from ultralytics import YOLO
             # ultralytics automatically downloads the weights on first run
             self.model = YOLO(model_version)
         except Exception as e:

@@ -1,9 +1,6 @@
 import os
 import exifread
-try:
-    from deepface import DeepFace
-except ImportError:
-    pass
+
 
 class DeepfakeDetector:
     def __init__(self):
@@ -44,6 +41,7 @@ class DeepfakeDetector:
             # We can use DeepFace to extract faces or perform attribute analysis
             # For deepfake detection, usually one would use a specific deepfake classifier (like MesoNet).
             # Here we use DeepFace's face extraction as a foundational check for facial anomalies.
+            from deepface import DeepFace
             faces = DeepFace.extract_faces(img_path=image_path, enforce_detection=False)
             results["faces_detected"] = len(faces)
             

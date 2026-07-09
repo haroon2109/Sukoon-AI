@@ -5,13 +5,14 @@ try:
 except ImportError:
     pass
 from PIL import Image
-from transformers import pipeline
+
 
 class SukoonMultimodalProcessor:
     def __init__(self):
         print("Initializing Free Open-Source Multi-Modal Engines...")
         # 1. Image Captioning Engine
         try:
+            from transformers import pipeline
             self.image_analyzer = pipeline("image-to-text", model="Salesforce/blip-image-captioning-base")
         except Exception as e:
             print(f"Failed to load image analyzer: {e}")

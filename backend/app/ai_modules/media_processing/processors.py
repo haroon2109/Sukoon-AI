@@ -3,17 +3,10 @@ import openai
 from PIL import Image
 from ...core.logger import api_logger
 
-try:
-    import cv2
-    HAS_CV2 = True
-except ImportError:
-    HAS_CV2 = False
+import importlib.util
 
-try:
-    from transformers import BlipProcessor, BlipForConditionalGeneration
-    HAS_TRANSFORMERS = True
-except ImportError:
-    HAS_TRANSFORMERS = False
+HAS_CV2 = importlib.util.find_spec("cv2") is not None
+HAS_TRANSFORMERS = importlib.util.find_spec("transformers") is not None
 
 from ..services.vision_service import vision_service
 
